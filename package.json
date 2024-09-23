@@ -77,11 +77,13 @@
   },
   "dependencies": {
     "@electron/notarize": "^2.3.2",
+    "bootstrap": "^5.3.3",
     "electron-debug": "^3.2.0",
     "electron-log": "^4.4.8",
     "electron-updater": "^6.1.4",
     "firebase": "^10.13.2",
     "react": "^18.2.0",
+    "react-bootstrap": "^2.10.4",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.16.0"
   },

@@ -1,14 +1,17 @@
-// App.jsx
-
 import React from 'react';
-import EquipoList from './components/EquipoList'; // Ajusta la ruta según la estructura de tu proyecto
+import Sidebar from './components/Sidebar';
+import Routes from './Routes'; // Importa el archivo de rutas
+import 'bootstrap/dist/css/bootstrap.min.css'; // Importa los estilos de Bootstrap
 
-const App = () => {
+function App() {
   return (
-    <div>
-      <EquipoList />
+    <div className="d-flex">
+      <Sidebar />
+      <div className="content p-4" style={{ flexGrow: 1 }}>
+        <Routes />
+      </div>
     </div>
   );
-};
+}
 
 export default App;

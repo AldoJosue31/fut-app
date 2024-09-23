@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { addUserToFirestore } from '../firebaseConfig';// Importa la función
+import { Button } from 'react-bootstrap';
+
 
 const EquipoList = () => {
   const [name, setName] = useState('');
@@ -41,7 +43,7 @@ const EquipoList = () => {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
-      <button onClick={handleAddUser}>Agregar Usuario</button>
+      <Button onClick={handleAddUser}>Agregar Usuario</Button>
     </div>
   );
 };
