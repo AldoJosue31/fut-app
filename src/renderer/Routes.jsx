@@ -7,11 +7,13 @@ import Resultados from './pages/Resultados';
 import Coordinacion from './pages/Coordinacion';
 import Inscripciones from './pages/Inscripciones';
 import Reportes from './pages/Reportes';
+import Home from './pages/home';
 
 const AppRoutes = () => {
   return (
     <Router>
       <Routes>
+       <Route path="/" element={<Home />} />
         <Route path="/equipos" element={<Equipos />} />
         <Route path="/jugadores" element={<Jugadores />} />
         <Route path="/calendario" element={<Calendario />} />

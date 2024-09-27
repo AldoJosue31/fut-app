@@ -1,21 +1,68 @@
 import React from 'react';
-import { Navbar, Nav } from 'react-bootstrap';
+import {
+  CDBSidebar,
+  CDBSidebarContent,
+  CDBSidebarFooter,
+  CDBSidebarHeader,
+  CDBSidebarMenu,
+  CDBSidebarMenuItem,
+} from 'cdbreact';
+import { Nav } from 'react-bootstrap';
 
-const Sidebar = () => {
+function Sidebar() {
   return (
-    <Navbar bg="dark" variant="dark" expand="lg" className="d-flex flex-column vh-100 p-3" style={{ width: '250px' }}>
-      <Navbar.Brand href="/">Liga Fútbol 5</Navbar.Brand>
-      <Nav className="flex-column">
-        <Nav.Link href="/equipos">Equipos</Nav.Link>
-        <Nav.Link href="/jugadores">Jugadores</Nav.Link>
-        <Nav.Link href="/calendario">Calendario</Nav.Link>
-        <Nav.Link href="/resultados">Resultados</Nav.Link>
-        <Nav.Link href="/coordinacion">Coordinación</Nav.Link>
-        <Nav.Link href="/inscripciones">Inscripciones</Nav.Link>
-        <Nav.Link href="/reportes">Reportes</Nav.Link>
-      </Nav>
-    </Navbar>
+    <div
+      style={{ display: 'flex', height: '100vh', overflow: 'scroll initial' }}
+    >
+      <CDBSidebar textColor="#fff" backgroundColor="#333">
+        <CDBSidebarHeader prefix={<i className="fa fa-bars fa-large" />}>
+          <a
+            href="/"
+            className="text-decoration-none"
+            style={{ color: 'inherit' }}
+          >
+            APP-FUT
+          </a>
+        </CDBSidebarHeader>
+
+        <CDBSidebarContent className="sidebar-content">
+          <CDBSidebarMenu>
+           <Nav.Link href="/equipos" activeClassName="activeClicked">
+            <CDBSidebarMenuItem icon="users">Equipos</CDBSidebarMenuItem>
+           </Nav.Link>
+           <Nav.Link href="/jugadores" activeClassName="activeClicked">
+            <CDBSidebarMenuItem icon="user">Jugadores</CDBSidebarMenuItem>
+           </Nav.Link>
+           <Nav.Link href="/calendario" activeClassName="activeClicked">
+            <CDBSidebarMenuItem icon="calendar-alt">Calendario</CDBSidebarMenuItem>
+           </Nav.Link>
+           <Nav.Link href="/resultados" activeClassName="activeClicked">
+            <CDBSidebarMenuItem icon="trophy">Resultados</CDBSidebarMenuItem>
+           </Nav.Link>
+           <Nav.Link href="/equipos" activeClassName="activeClicked">
+            <CDBSidebarMenuItem icon="handshake">Coordinación</CDBSidebarMenuItem>
+           </Nav.Link>
+           <Nav.Link href="/equipos" activeClassName="activeClicked">
+            <CDBSidebarMenuItem icon="edit">Inscripciones</CDBSidebarMenuItem>
+           </Nav.Link>
+           <Nav.Link href="/equipos" activeClassName="activeClicked">
+            <CDBSidebarMenuItem icon="file-alt">Reportes</CDBSidebarMenuItem>
+           </Nav.Link>
+          </CDBSidebarMenu>
+        </CDBSidebarContent>
+
+        <CDBSidebarFooter style={{ textAlign: 'center' }}>
+          <div
+            style={{
+              padding: '20px 5px',
+            }}
+          >
+            Sidebar Footer
+          </div>
+        </CDBSidebarFooter>
+      </CDBSidebar>
+    </div>
   );
-};
+}
 
 export default Sidebar;
