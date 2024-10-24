@@ -2,6 +2,7 @@ import React from 'react';
 import Sidebar from './components/Sidebar';
 import Routes from './Routes'; // Importa el archivo de rutas
 import 'bootstrap/dist/css/bootstrap.min.css'; // Importa los estilos de Bootstrap
+import './dist/output.css';
 
 function App() {
   return (
