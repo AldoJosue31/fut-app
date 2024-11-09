@@ -1,7 +1,7 @@
 // Equipos.jsx
 import React from 'react';
 
-function Equipos() {
+function Home() {
   return (
     <div>
       <h2>Bienvenido</h2>
@@ -9,4 +9,4 @@ function Equipos() {
   );
 }
 
-export default Equipos;
+export default Home;
