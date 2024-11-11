@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import MainLayout from "../components/MainLayout";
 import Calendario from "../pages/Calendario";
 import Coordinacion from "../pages/Coordinacion";
@@ -10,13 +10,13 @@ import Reportes from "../pages/Reportes";
 import Resultados from "../pages/Resultados";
 import ErrorPage from "../pages/ErrorPage";
 
-
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <MainLayout />,
     children: [
-      { path: "/index.html", element: <Home /> }, // Cambiamos index: true a path: "/"
+      { path: "/", element: <Home /> },
+      { path: "index.html", element: <Navigate to="/" replace /> }, // Redirigir /index.html a /
       { path: "calendario", element: <Calendario /> },
       { path: "coordinacion", element: <Coordinacion /> },
       { path: "equipos", element: <Equipos /> },

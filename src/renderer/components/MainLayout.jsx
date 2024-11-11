@@ -10,7 +10,7 @@ const MainLayout = () => {
       <CurrentRouteLogger />
       {  <div style={{ display: 'flex' }}>
       <Sidebar />
-      <div style={{ flex: 1, padding: '20px' }}>
+      <div style={{ flex: 1, padding: '20px', backgroundColor: '#2D2D2D', color: 'white'}}>
         <Outlet /> {/* Este es el espacio donde se cargarán las páginas */}
       </div>
     </div>}
