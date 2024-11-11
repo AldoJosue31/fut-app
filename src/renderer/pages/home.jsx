@@ -1,12 +1,12 @@
-// Equipos.jsx
+// src/pages/Home.jsx
 import React from 'react';
 
-function Home() {
+const Home = () => {
   return (
     <div>
-      <h2>Bienvenido</h2>
+      <h1>Bienvenido a la app</h1>
     </div>
   );
-}
+};
 
 export default Home;

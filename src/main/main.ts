@@ -15,6 +15,9 @@ import log from 'electron-log';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
 
+console.log('Current directory (main process):', __dirname);
+console.log('Working directory (main process):', process.cwd());
+
 class AppUpdater {
   constructor() {
     log.transports.file.level = 'info';

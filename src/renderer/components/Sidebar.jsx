@@ -7,7 +7,7 @@ import {
   CDBSidebarMenu,
   CDBSidebarMenuItem,
 } from 'cdbreact';
-import { Nav } from 'react-bootstrap';
+import { NavLink } from 'react-router-dom';
 
 function Sidebar() {
   return (
@@ -27,27 +27,27 @@ function Sidebar() {
 
         <CDBSidebarContent className="sidebar-content">
           <CDBSidebarMenu>
-           <Nav.Link href="/equipos" activeClassName="activeClicked">
-            <CDBSidebarMenuItem icon="users">Equipos</CDBSidebarMenuItem>
-           </Nav.Link>
-           <Nav.Link href="/jugadores" activeClassName="activeClicked">
-            <CDBSidebarMenuItem icon="user">Jugadores</CDBSidebarMenuItem>
-           </Nav.Link>
-           <Nav.Link href="/calendario" activeClassName="activeClicked">
-            <CDBSidebarMenuItem icon="calendar-alt">Calendario</CDBSidebarMenuItem>
-           </Nav.Link>
-           <Nav.Link href="/resultados" activeClassName="activeClicked">
-            <CDBSidebarMenuItem icon="trophy">Resultados</CDBSidebarMenuItem>
-           </Nav.Link>
-           <Nav.Link href="/equipos" activeClassName="activeClicked">
-            <CDBSidebarMenuItem icon="handshake">Coordinación</CDBSidebarMenuItem>
-           </Nav.Link>
-           <Nav.Link href="/equipos" activeClassName="activeClicked">
-            <CDBSidebarMenuItem icon="edit">Inscripciones</CDBSidebarMenuItem>
-           </Nav.Link>
-           <Nav.Link href="/equipos" activeClassName="activeClicked">
-            <CDBSidebarMenuItem icon="file-alt">Reportes</CDBSidebarMenuItem>
-           </Nav.Link>
+            <NavLink to="/equipos" className={({ isActive }) => isActive ? "activeClicked" : undefined}>
+              <CDBSidebarMenuItem icon="users">Equipos</CDBSidebarMenuItem>
+            </NavLink>
+            <NavLink to="/jugadores" className={({ isActive }) => isActive ? "activeClicked" : undefined}>
+              <CDBSidebarMenuItem icon="user">Jugadores</CDBSidebarMenuItem>
+            </NavLink>
+            <NavLink to="/calendario" className={({ isActive }) => isActive ? "activeClicked" : undefined}>
+              <CDBSidebarMenuItem icon="calendar-alt">Calendario</CDBSidebarMenuItem>
+            </NavLink>
+            <NavLink to="/resultados" className={({ isActive }) => isActive ? "activeClicked" : undefined}>
+              <CDBSidebarMenuItem icon="trophy">Resultados</CDBSidebarMenuItem>
+            </NavLink>
+            <NavLink to="/coordinacion" className={({ isActive }) => isActive ? "activeClicked" : undefined}>
+              <CDBSidebarMenuItem icon="handshake">Coordinación</CDBSidebarMenuItem>
+            </NavLink>
+            <NavLink to="/inscripciones" className={({ isActive }) => isActive ? "activeClicked" : undefined}>
+              <CDBSidebarMenuItem icon="edit">Inscripciones</CDBSidebarMenuItem>
+            </NavLink>
+            <NavLink to="/reportes" className={({ isActive }) => isActive ? "activeClicked" : undefined}>
+              <CDBSidebarMenuItem icon="file-alt">Reportes</CDBSidebarMenuItem>
+            </NavLink>
           </CDBSidebarMenu>
         </CDBSidebarContent>
 
