@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   CDBSidebar,
   CDBSidebarContent,
@@ -7,51 +7,59 @@ import {
   CDBSidebarMenu,
   CDBSidebarMenuItem,
 } from 'cdbreact';
-import { Nav } from 'react-bootstrap';
-import { FaArrowLeft, FaArrowRight } from 'react-icons/fa';  // Usamos react-icons para las flechas
+import { NavLink } from 'react-router-dom';
+import { FaArrowLeft, FaArrowRight } from 'react-icons/fa';
+
+const routes = [
+  { to: '/', icon: 'fas fa-home', label: 'Inicio', end: true },
+  { to: '/equipos', icon: 'fas fa-calendar-alt', label: 'Equipos' },
+  { to: '/clasificacion', icon: 'fas fa-list-ol', label: 'Clasificación' },
+  { to: '/editar', icon: 'fas fa-edit', label: 'Editar' },
+  { to: '/partidos', icon: 'fas fa-futbol', label: 'Partidos' },
+  { to: '/calendario', icon: 'fas fa-calendar-alt', label: 'Calendario' },
+];
 
 function Sidebar() {
   const [division, setDivision] = useState('Primera');
 
-  const handlePrevious = () => {
+  const handleToggleDivision = () => {
     setDivision((prev) => (prev === 'Primera' ? 'Segunda' : 'Primera'));
   };
 
-  const handleNext = () => {
-    setDivision((prev) => (prev === 'Primera' ? 'Segunda' : 'Primera'));
-  };
+  const menuItems = useMemo(
+    () =>
+      routes.map(({ to, icon, label, end }) => (
+        <NavLink
+          key={to}
+          to={to}
+          end={end}
+          className="text-decoration-none"
+          style={({ isActive }) => ({
+            display: 'flex',
+            alignItems: 'center',
+            color: isActive ? '#fff' : '#b0b0b0',
+            textDecoration: 'none',
+          })}
+        >
+          <CDBSidebarMenuItem icon={icon} iconType="solid">
+            {label}
+          </CDBSidebarMenuItem>
+        </NavLink>
+      )),
+    [],
+  );
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'scroll initial' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'auto' }}>
       <CDBSidebar textColor="#b0b0b0" backgroundColor="#444343">
         <CDBSidebarHeader prefix={<i className="fa fa-bars fa-large" />}>
-          <a
-            href="/"
-            className="text-decoration-none"
-            style={{ color: '#fff', fontSize: '1.2em', fontWeight: 'bold' }}
-          >
+          <NavLink to="/" className="text-decoration-none" style={{ color: '#fff', fontSize: '1.2em', fontWeight: 'bold' }}>
             Nombre
-          </a>
+          </NavLink>
         </CDBSidebarHeader>
 
         <CDBSidebarContent className="sidebar-content">
-          <CDBSidebarMenu>
-            <Nav.Link href="/" style={{ color: 'inherit' }}>
-              <CDBSidebarMenuItem icon="fas fa-home" iconType="solid">Inicio</CDBSidebarMenuItem>
-            </Nav.Link>
-            <Nav.Link href="/clasificacion" style={{ color: 'inherit' }}>
-              <CDBSidebarMenuItem icon="fas fa-list-ol" iconType="solid">Clasificación</CDBSidebarMenuItem>
-            </Nav.Link>
-            <Nav.Link href="/editar" style={{ color: 'inherit' }}>
-              <CDBSidebarMenuItem icon="fas fa-edit" iconType="solid">Editar</CDBSidebarMenuItem>
-            </Nav.Link>
-            <Nav.Link href="/partidos" style={{ color: 'inherit' }}>
-              <CDBSidebarMenuItem icon="fas fa-futbol" iconType="solid">Partidos</CDBSidebarMenuItem>
-            </Nav.Link>
-            <Nav.Link href="/calendario" style={{ color: 'inherit' }}>
-              <CDBSidebarMenuItem icon="fas fa-calendar-alt" iconType="solid">Calendario</CDBSidebarMenuItem>
-            </Nav.Link>
-          </CDBSidebarMenu>
+          <CDBSidebarMenu>{menuItems}</CDBSidebarMenu>
         </CDBSidebarContent>
 
         <CDBSidebarFooter style={{ textAlign: 'center', padding: '10px' }}>
@@ -66,7 +74,7 @@ function Sidebar() {
             }}
           >
             <button
-              onClick={handlePrevious}
+              onClick={handleToggleDivision}
               style={{
                 background: '#b0b0b0',
                 border: 'none',
@@ -76,17 +84,11 @@ function Sidebar() {
                 cursor: 'pointer',
               }}
             >
-              <FaArrowLeft size={20} />  {/* Flecha izquierda de react-icons */}
+              <FaArrowLeft size={20} />
             </button>
-            <span
-              style={{
-                color: '#fff'
-              }}
-            >
-              {division}
-            </span>
+            <span style={{ color: '#fff' }}>{division}</span>
             <button
-              onClick={handleNext}
+              onClick={handleToggleDivision}
               style={{
                 background: '#b0b0b0',
                 border: 'none',
@@ -96,7 +98,7 @@ function Sidebar() {
                 cursor: 'pointer',
               }}
             >
-              <FaArrowRight size={20} />  {/* Flecha derecha de react-icons */}
+              <FaArrowRight size={20} />
             </button>
           </div>
         </CDBSidebarFooter>
@@ -105,4 +107,4 @@ function Sidebar() {
   );
 }
 
-export default Sidebar;
+export default React.memo(Sidebar);

@@ -1,26 +1,202 @@
-.App {
-  text-align: center;
-  background-color: #f4f4f9;
+.main {
+  padding: 2rem;
+}
+.title {
+  font-size: 3rem;
+  font-weight: 300;
+  color: #F3F4F6;
+  margin-bottom: 1.5rem;
 }
 
-.App-header {
-  background-color: #333;
+.content-box {
+  border: 1px solid rgba(255,255,255,0.4);
+  background-color: #3A3A3A;
+  border-radius: 1rem;
+  padding: 2rem 1.5rem;
+  position: relative;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+.add-btn {
+  background-color: #16A34A;
   color: white;
-  padding: 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem 0.5rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  position: absolute;
+  top: -0.75rem;
+  right: 1.5rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  cursor: pointer;
+}
+.add-btn:hover {
+  background-color: #22C55E;
 }
 
-main {
-  padding: 1rem;
+.team-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.team-item {
+  display: flex;
+  align-items: center;
+  background-color: #6B7280;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  transition: background 0.3s;
+  cursor: pointer; /* indicar clickabilidad */
+}
+.team-item:hover {
+  background-color: #7F7F7F;
+}
+.team-color {
+  width: 4rem;
+  height: 4rem;
+  clip-path: polygon(0 0, 100% 0, 80% 100%, 0% 100%);
+  flex-shrink: 0;
+}
+.team-info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+}
+.team-name {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #F3F4F6;
+}
+.team-actions {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0 1rem;
+}
+.team-btn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+}
+.team-btn.red:hover {
+  transform: scale(1.2);
+}
+.team-btn.red   { background-color: #DC2626; }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(4px);
+  z-index: 50;
+}
+.modal-content {
+  background: #2A2A2A;
+  border-radius: 0.75rem;
+  width: 90%;
+  max-width: 500px;
+  padding: 2rem;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.7);
+  animation: slideIn 0.3s ease-out;
+}
+@keyframes slideIn { from { opacity: 0; transform: translateY(-20px);} to { opacity: 1; transform: translateY(0);} }
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.modal-header h2 {
+  color: #F3F4F6;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+.modal-close {
+  background: none;
+  border: none;
+  color: #F3F4F6;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.modal-close:hover {
+  color: #DC2626;
+}
+.modal-body {
+  color: #E5E7EB;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.modal-actions .btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+.modal-actions .btn.cancel { background: #9CA3AF; color: white; }
+.modal-actions .btn.cancel:hover { background: #B0B7C3; }
+.modal-actions .btn.danger { background: #DC2626; color: white; }
+.modal-actions .btn.danger:hover { background: #E11D48; }
+
+.tabs {
+  display: flex;
+  gap: 1.5rem;
+  border-bottom: 1px solid rgba(255,255,255,0.4);
+  margin-bottom: 1rem;
+}
+.tab {
+  padding-bottom: 0.5rem;
+  color: #9CA3AF; /* gris */
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+.active-tab {
+  border-bottom: 2px solid #16A34A;
+  color: #F3F4F6;
+}
+.classification-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.classification-table th,
+.classification-table td {
+  padding: 0.75rem 1rem;
+  color: #E5E7EB;
+}
+.classification-table thead th {
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  color: #9CA3AF;
+}
+.classification-table tbody tr {
+  border-top: 1px solid rgba(255,255,255,0.2);
+}
+.classification-table tbody tr:hover {
+  background-color: rgba(255,255,255,0.05);
+}
+.team-cell {
+  display: flex;
+  align-items: center;
+}
+.placeholder {
+  color: #9CA3AF;
+  font-style: italic;
 }
 
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-
-li {
-  background-color: #eee;
-  margin: 5px 0;
-  padding: 10px;
-  border-radius: 5px;
-}

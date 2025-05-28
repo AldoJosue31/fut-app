@@ -1,5 +1,7 @@
 import { createRoot } from 'react-dom/client';
 
+import { Style } from './styles/styles.css';
+
 import { router } from "./Router";
 import { RouterProvider } from 'react-router-dom';
 

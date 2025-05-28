@@ -3,9 +3,9 @@ import React from 'react';
 function Reportes() {
   return (
     <div>
-      <h2>Generación de Reportes</h2>
+      <h2>Editar</h2>
       {/* Aquí puedes agregar herramientas para generar reportes */}
-      <p>Genera reportes de estadísticas, estado de pagos y rendimiento de los equipos.</p>
+      <p>Editar</p>
     </div>
   );
 }

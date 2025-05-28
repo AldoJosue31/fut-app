@@ -1,7 +1,7 @@
 // src/components/MainLayout.jsx
 import React from 'react';
 import Sidebar from './Sidebar';
-import CurrentRouteLogger from "./CurrentRouteLogger"; 
+import CurrentRouteLogger from "./CurrentRouteLogger";
 import { Outlet } from 'react-router-dom';
 
 const MainLayout = () => {
@@ -15,7 +15,7 @@ const MainLayout = () => {
       </div>
     </div>}
     </div>
-  
+
   );
 };
 
