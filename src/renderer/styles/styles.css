@@ -279,5 +279,66 @@
   height: 1rem;
 }
 
+/* =====================
+   Estilos para el modal de Agregar Equipo
+   ===================== */
+
+/* Ajustamos el contenido del formulario dentro del modal */
+.modal-body .form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+
+.modal-body .form-group label {
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  color: #E5E7EB;
+}
+
+.modal-body .form-group input,
+.modal-body .form-group select {
+  padding: 0.5rem;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 0.375rem;
+  background: #1F1F1F;
+  color: #F3F4F6;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.modal-body .form-group input:focus,
+.modal-body .form-group select:focus {
+  border-color: #16A34A;
+}
+
+/* Estilo específico para el input color */
+.modal-body .form-group input[type="color"] {
+  padding: 0;
+  height: 2rem;
+  width: 100%;
+  border: none;
+  background: none;
+}
+
+/* Ajustes de los botones del modal */
+.modal-actions .btn.success {
+  background: #16A34A;
+  color: white;
+}
+
+.modal-actions .btn.success:hover {
+  background: #22C55E;
+}
+
+.modal-actions {
+  margin-top: 1.5rem;
+}
+
+/* Aseguramos que el modal-content tenga suficiente espacio */
+.modal-content {
+  padding: 2.5rem;
+}
 
 

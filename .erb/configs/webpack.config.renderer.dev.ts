@@ -1,3 +1,4 @@
+// .erb/configs/webpack.config.renderer.dev.ts
 import 'webpack-dev-server';
 import path from 'path';
 import fs from 'fs';
@@ -11,8 +12,11 @@ import baseConfig from './webpack.config.base';
 import webpackPaths from './webpack.paths';
 import checkNodeEnv from '../scripts/check-node-env';
 
-// When an ESLint server is running, we can't set the NODE_ENV so we'll check if it's
-// at the dev webpack config is not accidentally run in a production environment
+// Carga las variables de entorno desde la raíz (.env.local)
+import dotenv from 'dotenv';
+dotenv.config({ path: path.resolve(__dirname, '../../.env.local') });
+
+// Asegúrate de que no estés en producción por error
 if (process.env.NODE_ENV === 'production') {
   checkNodeEnv('development');
 }
@@ -23,9 +27,7 @@ const skipDLLs =
   module.parent?.filename.includes('webpack.config.renderer.dev.dll') ||
   module.parent?.filename.includes('webpack.config.eslint');
 
-/**
- * Warn if the DLL is not built
- */
+// Construye DLLs si faltan
 if (
   !skipDLLs &&
   !(fs.existsSync(webpackPaths.dllPath) && fs.existsSync(manifest))
@@ -40,9 +42,7 @@ if (
 
 const configuration: webpack.Configuration = {
   devtool: 'inline-source-map',
-
   mode: 'development',
-
   target: ['web', 'electron-renderer'],
 
   entry: [
@@ -55,9 +55,7 @@ const configuration: webpack.Configuration = {
     path: webpackPaths.distRendererPath,
     publicPath: '/',
     filename: 'renderer.dev.js',
-    library: {
-      type: 'umd',
-    },
+    library: { type: 'umd' },
   },
 
   module: {
@@ -66,14 +64,7 @@ const configuration: webpack.Configuration = {
         test: /\.s?(c|a)ss$/,
         use: [
           'style-loader',
-          {
-            loader: 'css-loader',
-            options: {
-              modules: true,
-              sourceMap: true,
-              importLoaders: 1,
-            },
-          },
+          { loader: 'css-loader', options: { modules: true, sourceMap: true, importLoaders: 1 } },
           'sass-loader',
         ],
         include: /\.module\.s?(c|a)ss$/,
@@ -83,17 +74,8 @@ const configuration: webpack.Configuration = {
         use: ['style-loader', 'css-loader', 'sass-loader'],
         exclude: /\.module\.s?(c|a)ss$/,
       },
-      // Fonts
-      {
-        test: /\.(woff|woff2|eot|ttf|otf)$/i,
-        type: 'asset/resource',
-      },
-      // Images
-      {
-        test: /\.(png|jpg|jpeg|gif)$/i,
-        type: 'asset/resource',
-      },
-      // SVG
+      { test: /\.(woff|woff2|eot|ttf|otf)$/i, type: 'asset/resource' },
+      { test: /\.(png|jpg|jpeg|gif)$/i, type: 'asset/resource' },
       {
         test: /\.svg$/,
         use: [
@@ -102,9 +84,7 @@ const configuration: webpack.Configuration = {
             options: {
               prettier: false,
               svgo: false,
-              svgoConfig: {
-                plugins: [{ removeViewBox: false }],
-              },
+              svgoConfig: { plugins: [{ removeViewBox: false }] },
               titleProp: true,
               ref: true,
             },
@@ -114,7 +94,9 @@ const configuration: webpack.Configuration = {
       },
     ],
   },
+
   plugins: [
+    // DLL reference
     ...(skipDLLs
       ? []
       : [
@@ -127,36 +109,24 @@ const configuration: webpack.Configuration = {
 
     new webpack.NoEmitOnErrorsPlugin(),
 
-    /**
-     * Create global constants which can be configured at compile time.
-     *
-     * Useful for allowing different behaviour between development builds and
-     * release builds
-     *
-     * NODE_ENV should be production so that modules do not perform certain
-     * development checks
-     *
-     * By default, use 'development' as NODE_ENV. This can be overriden with
-     * 'staging', for example, by changing the ENV variables in the npm scripts
-     */
+    // Variables básicas de entorno
     new webpack.EnvironmentPlugin({
       NODE_ENV: 'development',
     }),
 
-    new webpack.LoaderOptionsPlugin({
-      debug: true,
+    // Exponer REACT_APP_SUPABASE_* en el bundle
+    new webpack.DefinePlugin({
+      'process.env.REACT_APP_SUPABASE_URL': JSON.stringify(process.env.REACT_APP_SUPABASE_URL),
+      'process.env.REACT_APP_SUPABASE_KEY': JSON.stringify(process.env.REACT_APP_SUPABASE_KEY),
     }),
 
+    new webpack.LoaderOptionsPlugin({ debug: true }),
     new ReactRefreshWebpackPlugin(),
 
     new HtmlWebpackPlugin({
-      filename: path.join('index.html'),
+      filename: 'index.html',
       template: path.join(webpackPaths.srcRendererPath, 'index.ejs'),
-      minify: {
-        collapseWhitespace: true,
-        removeAttributeQuotes: true,
-        removeComments: true,
-      },
+      minify: { collapseWhitespace: true, removeAttributeQuotes: true, removeComments: true },
       isBrowser: false,
       env: process.env.NODE_ENV,
       isDevelopment: process.env.NODE_ENV !== 'production',
@@ -174,12 +144,8 @@ const configuration: webpack.Configuration = {
     compress: true,
     hot: true,
     headers: { 'Access-Control-Allow-Origin': '*' },
-    static: {
-      publicPath: '/',
-    },
-    historyApiFallback: {
-      verbose: true,
-    },
+    static: { publicPath: '/' },
+    historyApiFallback: { verbose: true },
     setupMiddlewares(middlewares) {
       console.log('Starting preload.js builder...');
       const preloadProcess = spawn('npm', ['run', 'start:preload'], {
@@ -205,6 +171,7 @@ const configuration: webpack.Configuration = {
           process.exit(code!);
         })
         .on('error', (spawnError) => console.error(spawnError));
+
       return middlewares;
     },
   },
