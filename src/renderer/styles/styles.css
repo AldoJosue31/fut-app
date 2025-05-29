@@ -200,3 +200,84 @@
   font-style: italic;
 }
 
+.jornadas-nav {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.jornada-title {
+  margin: 0 1rem;
+  color: #F3F4F6;
+  font-weight: 500;
+}
+.jornada-day {
+  margin-bottom: 1.5rem;
+}
+.jornada-day-title {
+  text-align: center;
+  color: #F3F4F6;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  position: relative;
+}
+.jornada-day-title::before {
+  content: '';
+  position: absolute;
+  top: -0.5rem;
+  left: 0;
+  width: 100%;
+  border-top: 1px solid rgba(255,255,255,0.5);
+}
+.match-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.5rem 0;
+  color: #F3F4F6;
+}
+.match-team {
+  min-width: 4rem;
+  text-align: center;
+}
+.match-result {
+  min-width: 3rem;
+  text-align: center;
+}
+
+.jornada-card {
+  margin-bottom: 1.5rem;
+}
+.jornada-day-title {
+  text-align: center;
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+}
+.matches-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+.match-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255,255,255,0.1);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+.match-card .bold {
+  font-weight: 600;
+  color: #F3F4F6;
+}
+.match-card .match-result {
+  font-style: italic;
+}
+.team-color.small {
+  width: 1rem;
+  height: 1rem;
+}
+
+
+
