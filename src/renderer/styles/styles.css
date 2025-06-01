@@ -341,4 +341,383 @@
   padding: 2.5rem;
 }
 
+.team-row {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.team-row:hover {
+  background-color: #f0f0f0;
+}
+
+.team-btn.delete-btn {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 6px 10px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.team-btn.delete-btn:hover {
+  background-color: #c0392b;
+}
+
+/* =====================
+   Botón de eliminar mejorado
+   ===================== */
+.team-btn.delete-btn {
+  background-color: #DC2626;
+  color: #FFFFFF;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  cursor: pointer;
+}
+
+.team-btn.delete-btn:hover {
+  background-color: #B91C1C;
+  transform: translateY(-1px);
+}
+
+.team-btn.delete-btn:active {
+  background-color: #991B1B;
+  transform: translateY(0);
+}
+
+
+/* Contenedor principal */
+.config-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Encabezado */
+.config-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+  padding-bottom: 0.75rem;
+}
+.config-modal__header h2 {
+  color: #F3F4F6;
+  font-size: 1.75rem;
+}
+.config-modal__close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #F3F4F6;
+  transition: color 0.2s;
+}
+.config-modal__close:hover {
+  color: #DC2626;
+}
+
+/* Cuerpo del modal */
+.config-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Sección de nueva división */
+.config-modal__new label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #E5E7EB;
+  font-weight: 500;
+}
+.config-modal__new-input {
+  display: flex;
+  gap: 0.75rem;
+}
+.config-modal__new-input input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 0.375rem;
+  background: #1F1F1F;
+  color: #F3F4F6;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.config-modal__new-input input:focus {
+  border-color: #16A34A;
+}
+.config-modal__new-input .btn.success {
+  padding: 0 1rem;
+  border-radius: 0.375rem;
+}
+
+/* Lista de divisiones */
+.config-modal__list h3 {
+  margin-bottom: 0.75rem;
+  color: #9CA3AF;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.config-modal__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #3A3A3A;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  transition: background 0.2s;
+}
+.config-modal__item:hover {
+  background: #4A4A4A;
+}
+
+/* Modo display */
+.config-modal__display {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.config-modal__name {
+  flex: 1;
+  color: #E5E7EB;
+  font-size: 1rem;
+}
+.config-modal__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.config-modal__actions .btn.icon {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  padding: 0.25rem;
+  transition: transform 0.1s;
+}
+.config-modal__actions .btn.icon:hover {
+  transform: scale(1.2);
+}
+.config-modal__actions .btn.icon.danger {
+  color: #DC2626;
+}
+
+/* Modo edición */
+.config-modal__edit {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+.config-modal__edit input {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 0.375rem;
+  background: #1F1F1F;
+  color: #F3F4F6;
+}
+.config-modal__edit .btn {
+  padding: 0 0.75rem;
+  border-radius: 0.375rem;
+}
+
+/* Ajuste final de acciones globales */
+.modal-actions {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255,255,255,0.2);
+}
+.modal-actions .btn {
+  min-width: 4rem;
+}
+
+.config-modal__edit-input {
+  background: #2a2a2a;
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  color: #fff;
+}
+.config-modal__edit-input:focus {
+  border-color: #16a34a;
+}
+.btn.text {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-weight: 500;
+}
+.btn.text:hover {
+  color: #ffffff;
+}
+
+/* ============================
+   Modal de Equipos y Jugadores
+   ============================ */
+
+/* Contenedor de pestañas */
+.tabs {
+  display: flex;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+  margin-bottom: 1.5rem;
+}
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 0.75rem 0;
+  background: #2A2A2A;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #9CA3AF;
+  transition: background 0.2s, color 0.2s;
+}
+.tab:hover {
+  background: #3A3A3A;
+}
+.active-tab {
+  background: #1F1F1F;
+  border-bottom: 3px solid #16A34A;
+  color: #F3F4F6;
+}
+
+/* Secciones internas */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.section h3 {
+  margin: 0;
+  color: #F3F4F6;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.section label {
+  color: #E5E7EB;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.section input,
+.section select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 0.375rem;
+  background: #1F1F1F;
+  color: #F3F4F6;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.section input:focus,
+.section select:focus {
+  border-color: #16A34A;
+}
+
+/* Lista de jugadores existentes */
+.jugadores-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+}
+.jugadores-list li {
+  padding: 0.5rem 0.75rem;
+  background: #3A3A3A;
+  border-radius: 0.375rem;
+  color: #E5E7EB;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Filas de nuevo jugador */
+.player-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.player-row input {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  background: #1F1F1F;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #F3F4F6;
+  border-radius: 0.375rem;
+  font-size: 0.9rem;
+}
+.btn.small {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+}
+.btn.danger {
+  background: #DC2626;
+  color: #FFF;
+  border: none;
+  border-radius: 0.375rem;
+}
+.btn.danger:hover {
+  background: #B91C1C;
+}
+
+/* Ajuste general del modal body */
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.teams-grid h3 {
+  margin-bottom: 0.5rem;
+  color: #F3F4F6;
+  font-size: 1.25rem;
+}
+
+.teams-grid ul li {
+  margin-bottom: 0.5rem;
+}
+
+.setup-box {
+  border: 1px solid rgba(255,255,255,0.4);
+  background-color: #3A3A3A;
+  border-radius: 1rem;
+  padding: 2rem 1.5rem;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+  margin-bottom: 2rem;
+}
+
+.setup-box h2 {
+  color: #F3F4F6;
+  margin-bottom: 1rem;
+}
+
+.setup-box .section label {
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.setup-box .btn.success {
+  background: #16A34A;
+  color: #FFF;
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+}
+
+.jornada-item:hover {
+  background-color: rgba(255,255,255,0.05);
+}
 

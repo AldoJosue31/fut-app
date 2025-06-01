@@ -1,77 +1,91 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../styles/styles.css';
+import { getTeams, getTeamStats } from '../services/teamsService.js';
+import { getPlayersByTeam, getPlayerStats } from '../services/playersService.js';
 
 const tabs = ['Tabla', 'Jornadas', 'Goleadores'];
 
-// Datos de clasificación
-const classificationData = [
-  { id: 1, name: 'Equipo A', stats: { PJ: 10, G: 7, E: 2, P: 1, GF: 25, GC: 10, DG: 15, PTS: 23 } },
-  { id: 2, name: 'Equipo B', stats: { PJ: 10, G: 6, E: 3, P: 1, GF: 20, GC: 8, DG: 12, PTS: 21 } },
-  // ... más equipos ...
-];
-
-// Datos de jornadas con ejemplos de partidos
-const jornadasData = [
-  {
-    id: 1,
-    title: 'J1',
-    dates: [
-      {
-        date: 'Jueves 03 de Noviembre',
-        matches: [
-          { home: 'Equipo A', away: 'Equipo B', time: '9:00 pm' },
-          { home: 'Equipo C', away: 'Equipo D', time: '10:00 pm' },
-          { home: 'Equipo E', away: 'Equipo F', time: '11:00 pm' }
-        ]
-      },
-      {
-        date: 'Viernes 04 de Noviembre',
-        matches: [
-          { home: 'Equipo G', away: 'Equipo H', time: '9:00 pm' },
-          { home: 'Equipo I', away: 'Equipo J', time: '10:00 pm' },
-          { home: 'Equipo K', away: 'Equipo L', time: '11:00 pm' }
-        ]
-      }
-    ]
-  },
-  {
-    id: 2,
-    title: 'J2',
-    dates: [
-      {
-        date: 'Lunes 07 de Noviembre',
-        matches: [
-          { home: 'Equipo A', away: 'Equipo C', result: '2-1' },
-          { home: 'Equipo B', away: 'Equipo D', result: '0-0' },
-          { home: 'Equipo E', away: 'Equipo G', result: '3-2' }
-        ]
-      },
-      {
-        date: 'Martes 08 de Noviembre',
-        matches: [
-          { home: 'Equipo F', away: 'Equipo H', result: '1-1' },
-          { home: 'Equipo I', away: 'Equipo K', result: '0-2' },
-          { home: 'Equipo J', away: 'Equipo L', result: '4-0' }
-        ]
-      }
-    ]
-  }
-  // ... más jornadas ...
-];
-
-// Datos de goleadores
-const goleadoresData = [
-  { id: 1, name: 'Juan Pérez', team: 'Equipo A', goals: 8 },
-  { id: 2, name: 'Luis Gómez', team: 'Equipo C', goals: 7 },
-  // ... más goleadores ...
-];
-
-const Clasificacion = () => {
+export default function Clasificacion() {
   const [activeTab, setActiveTab] = useState('Tabla');
+  const [classificationData, setClassificationData] = useState([]);
+  const [goleadoresData, setGoleadoresData] = useState([]);
   const [currentJornada, setCurrentJornada] = useState(0);
 
+  // Función para obtener clasificación según división actual
+  async function fetchClassification() {
+    try {
+      const teams = await getTeams();
+      const division = localStorage.getItem('division') || 'Primera';
+      const filtered = teams.filter(t => t.division === division);
+      const formatted = await Promise.all(
+        filtered.map(async team => {
+          const stats = await getTeamStats(team.id);
+          const PJ = (stats.total_wins || 0) + (stats.total_draws || 0) + (stats.total_losses || 0);
+          const G = stats.total_wins || 0;
+          const E = stats.total_draws || 0;
+          const P = stats.total_losses || 0;
+          const PTS = G * 3 + E;
+          return {
+            id: team.id,
+            name: team.name,
+            stats: { PJ, G, E, P, GF: 0, GC: 0, DG: 0, PTS },
+          };
+        })
+      );
+      formatted.sort((a, b) => b.stats.PTS - a.stats.PTS);
+      setClassificationData(formatted);
+    } catch (error) {
+      console.error('Error fetching classification:', error);
+    }
+  }
+
+  // Función para obtener goleadores según división actual
+  async function fetchGoleadores() {
+    try {
+      const teams = await getTeams();
+      const division = localStorage.getItem('division') || 'Primera';
+      const filtered = teams.filter(t => t.division === division);
+      const playersList = [];
+      for (const team of filtered) {
+        const players = await getPlayersByTeam(team.id);
+        for (const jug of players) {
+          let totalGoals = 0;
+          try {
+            const stats = await getPlayerStats(jug.id);
+            totalGoals = stats.total_goals;
+          } catch {
+            totalGoals = 0;
+          }
+          playersList.push({
+            id: jug.id,
+            name: `${jug.nombre} ${jug.apellido}`,
+            team: team.name,
+            goals: totalGoals,
+          });
+        }
+      }
+      playersList.sort((a, b) => b.goals - a.goals);
+      setGoleadoresData(playersList);
+    } catch (error) {
+      console.error('Error fetching goleadores:', error);
+    }
+  }
+
+  // Ejecutar al montar y al cambiar división
+  useEffect(() => {
+    fetchClassification();
+    window.addEventListener('divisionChange', fetchClassification);
+    return () => window.removeEventListener('divisionChange', fetchClassification);
+  }, []);
+
+  useEffect(() => {
+    fetchGoleadores();
+    window.addEventListener('divisionChange', fetchGoleadores);
+    return () => window.removeEventListener('divisionChange', fetchGoleadores);
+  }, []);
+
   const prevJornada = () => setCurrentJornada(i => Math.max(i - 1, 0));
-  const nextJornada = () => setCurrentJornada(i => Math.min(i + 1, jornadasData.length - 1));
+  const nextJornada = () => setCurrentJornada(i => i + 1);
 
   return (
     <div className="main">
@@ -83,6 +97,7 @@ const Clasificacion = () => {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={activeTab === tab ? 'tab active-tab' : 'tab'}
+              disabled={tab === 'Jornadas'} // Jornadas sin datos reales
             >
               {tab}
             </button>
@@ -108,9 +123,9 @@ const Clasificacion = () => {
                 </tr>
               </thead>
               <tbody>
-                {classificationData.map(team => (
+                {classificationData.map((team, idx) => (
                   <tr key={team.id}>
-                    <td>{team.id}</td>
+                    <td>{idx + 1}</td>
                     <td className="team-cell">
                       <span className="team-color"></span>
                       <span className="team-name">{team.name}</span>
@@ -130,30 +145,14 @@ const Clasificacion = () => {
           </div>
         )}
 
-        {/* TAB: Jornadas */}
+        {/* TAB: Jornadas (sin datos reales) */}
         {activeTab === 'Jornadas' && (
           <div className="jornadas-section">
             <div className="jornadas-nav">
-              <button onClick={prevJornada} className="team-btn" disabled={currentJornada === 0}>&lt;</button>
-              <span className="jornada-title">{jornadasData[currentJornada].title}</span>
-              <button onClick={nextJornada} className="team-btn" disabled={currentJornada === jornadasData.length - 1}>&gt;</button>
+              <button onClick={prevJornada} className="team-btn" disabled>{'<'}</button>
+              <span className="jornada-title">Sin Datos de Jornadas</span>
+              <button onClick={nextJornada} className="team-btn" disabled>{'>'}</button>
             </div>
-            {jornadasData[currentJornada].dates.map(day => (
-              <div key={day.date} className="jornada-day">
-                <h3 className="jornada-day-title">{day.date}</h3>
-                {day.matches.map((m, i) => (
-                  <div key={i} className="match-row">
-                    <span className="match-team">{m.home}</span>
-                    <span className="team-color"></span>
-                    <span className="match-result">
-                      {m.result ? m.result : m.time}
-                    </span>
-                    <span className="team-color"></span>
-                    <span className="match-team">{m.away}</span>
-                  </div>
-                ))}
-              </div>
-            ))}
           </div>
         )}
 
@@ -170,9 +169,9 @@ const Clasificacion = () => {
                 </tr>
               </thead>
               <tbody>
-                {goleadoresData.map(pl => (
+                {goleadoresData.map((pl, idx) => (
                   <tr key={pl.id}>
-                    <td>{pl.id}</td>
+                    <td>{idx + 1}</td>
                     <td className="team-cell">
                       <span className="team-color"></span>
                       <span className="team-name">{pl.name}</span>
@@ -189,6 +188,4 @@ const Clasificacion = () => {
       </div>
     </div>
   );
-};
-
-export default Clasificacion;
+}
