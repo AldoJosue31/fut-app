@@ -1,4 +1,3 @@
-// src/renderer/services/matchesService.js
 import { supabase } from '../supabaseClient.js';
 import { getTeams } from './teamsService.js';
 
