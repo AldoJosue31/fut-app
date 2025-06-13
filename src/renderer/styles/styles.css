@@ -721,3 +721,20 @@
   background-color: rgba(255,255,255,0.05);
 }
 
+/* Reservamos un área de 400px (ajústalo a tu gusto) para la tabla de horarios */
+.content-box .classification-table-wrapper {
+  min-height: 400px;
+  position: relative;
+}
+
+/* Estilos del spinner centrado */
+.content-box .loading-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(31,31,31,0.8);
+  z-index: 10;
+}
+
