@@ -18,6 +18,8 @@ const hours = ['18:00', '19:00', '20:00', '21:00', '22:00', '23:00'];
 
 export default function Partidos() {
   const [activeTab, setActiveTab] = useState('Torneos');
+  const [doubleRounds, setDoubleRounds] = useState({});    // ← nuevo
+  const [loadingDivs, setLoadingDivs] = useState({});      // ← nuevo
   // Estados compartidos
   const [divisions, setDivisions] = useState([]);
   const [teamsByDiv, setTeamsByDiv] = useState({});
@@ -58,6 +60,9 @@ export default function Partidos() {
       list.splice(1, 0, list.pop());
     }
     return rounds;
+  }
+    function handleSetDouble(div, value) {
+    setDoubleRounds(prev => ({ ...prev, [div]: value }));
   }
 
   // Carga inicial y efectos
@@ -151,27 +156,96 @@ export default function Partidos() {
   }, [activeTab, activeDiv, allJornadas, season]);
 
   // Lógica para iniciar torneo
-  async function handleStartDivision(div) {
+async function handleStartDivision(div, startDate, isDouble = false) {
+    if (!startDate) {
+      return alert('Debes seleccionar fecha de inicio antes de iniciar el torneo.');
+    }
     const equipos = teamsByDiv[div] || [];
-    if (equipos.length < 2) return alert('Se requieren al menos 2 equipos activos.');
+    if (equipos.length < 2) {
+      return alert('Se requieren al menos 2 equipos activos.');
+    }
     if (await isTorneoComenzado(div, season)) {
       return alert(`Ya existe un torneo iniciado para ${div} en ${season}.`);
     }
-    const rounds = roundRobin(equipos);
-    const schedKey = `${div}-${season}`;
-    localStorage.setItem(`schedule-${schedKey}`, JSON.stringify(rounds));
-    setScheduledMatches(prev => ({ ...prev, [schedKey]: rounds }));
-    for (let i = 0; i < rounds.length; i++) {
-      await addJornada(`Jornada ${i + 1}`, div, season);
+
+
+     // ── 1.B) Evitar iniciar dos torneos simultáneos en la misma división/season ──
+     // Comprobamos en tournament_teams si ya hay un registro de este div+season
+     const { data: ttData, error: ttError } = await supabase
+       .from('tournament_teams')
+       .select('id')
+       .eq('division', div)
+       .eq('season', season)
+       .limit(1);
+     if (ttError) {
+       console.error('Error comprobando torneo existente:', ttError);
+       return alert('No se pudo verificar si ya existe un torneo.');
+     }
+     if (ttData.length > 0) {
+       return alert(`Ya hay un torneo activo de la división ${div} en ${season}.`);
+     }
+     // ───
+
+    // bloqueamos doble click
+    setLoadingDivs(prev => ({ ...prev, [div]: true }));
+
+    let tournamentId;
+    try {
+const { data: tour, error: tourError } = await supabase
+  .from('tournaments')
+  .insert([
+    {
+      name: `${div} - ${season}`, // por ejemplo
+      start_date: startDate,
+      end_date: null
     }
-    const ids = equipos.map(t => t.id);
-    await addTournamentTeams(div, season, ids);
-    const allJ = await getJornadas();
-    const js = allJ.filter(j => j.division === div && j.season === season);
-    setJornadas(js);
-    setSelectedJornada(js[0]?.id || null);
-    setStartedDivisions(prev => ({ ...prev, [div]: true }));
-    setTournamentTeams(ids);
+  ])
+  .select('id')
+  .single();
+
+      if (tourError) throw tourError;
+      tournamentId = tour.id;
+
+      // Snapshot de equipos
+      const teamIds = equipos.map(t => t.id);
+      await addTournamentTeams(div, season, teamIds, tournamentId);
+
+      // Generar rondas
+      let rounds = roundRobin(equipos);
+      if (isDouble) {
+        // añadimos el mirror invertido
+        const reversed = rounds.map(pairs =>
+          pairs.map(p => ({ team1_id: p.team2_id, team2_id: p.team1_id }))
+        );
+        rounds = [...rounds, ...reversed];
+      }
+
+      // Guardar schedule
+      const schedKey = `${div}-${season}`;
+      localStorage.setItem(`schedule-${schedKey}`, JSON.stringify(rounds));
+      setScheduledMatches(prev => ({ ...prev, [schedKey]: rounds }));
+
+      // Crear jornadas
+      for (let i = 0; i < rounds.length; i++) {
+        await addJornada(`Jornada ${i + 1}`, div, season);
+      }
+
+      // Refrescar vistas
+      const allJ = await getJornadas();
+      const js = allJ.filter(j => j.division === div && j.season === season);
+      setJornadas(js);
+      setSelectedJornada(js[0]?.id || null);
+      setStartedDivisions(prev => ({ ...prev, [div]: true }));
+      setTournamentTeams(teamIds);
+
+      alert('Torneo iniciado correctamente.');
+    } catch (err) {
+      console.error('Error creando torneo:', err);
+      alert('No se pudo crear este torneo en la DB.');
+    } finally {
+      setLoading(false);
+      setLoadingDivs(prev => ({ ...prev, [div]: false }));
+    }
   }
 
   // Carga de partidos y jugadores
@@ -230,41 +304,78 @@ export default function Partidos() {
     setTableSchedule(prev => ({ ...prev, [tableKey]: { ...currTable } }));
   }
 
-  async function handleConfirmJornada() {
-    if (!selectedJornada) return;
-    const key = `${activeDiv}-${season}-${selectedJornada}`;
-    if (confirmedJornadas[key]) return;
-    const ok = window.confirm(
-      '¿Estás seguro de que quieres confirmar esta jornada? ' +
-      'Una vez confirmada ya no podrás volver a editarla.'
+async function handleConfirmJornada() {
+  if (!selectedJornada) return;
+
+  const key = `${activeDiv}-${season}-${selectedJornada}`;
+  const allRounds = scheduledMatches[`${activeDiv}-${season}`] || [];
+  const roundIdx = allRounds.findIndex((_, i) => jornadas[i]?.id === selectedJornada);
+  const lastIdx = allRounds.length - 1;
+
+  // 1) Si estoy en la última jornada, compruebo pendientes de todas las anteriores
+  if (roundIdx === lastIdx) {
+    // A) pares de todas las rondas previas
+    const prevRounds = allRounds.slice(0, lastIdx).flat();
+    // B) pares ya "colocados" en las tablas de TODAS las jornadas
+    const placed = [];
+    jornadas.forEach(j => {
+      const k = `${activeDiv}-${season}-${j.id}`;
+      const tbl = tableSchedule[k] || {};
+      Object.values(tbl).forEach(p => placed.push(p));
+    });
+    // C) detecto cuáles prevRounds NO están en placed → pendientes
+    const pending = prevRounds.filter(p =>
+      !placed.some(q =>
+        q.team1_id === p.team1_id && q.team2_id === p.team2_id
+      )
     );
-    if (!ok) return;
-    const table = tableSchedule[key] || {};
-    const entries = Object.entries(table);
-    if (entries.length === 0) {
-      return alert('Arrastra al menos un partido para confirmar.');
-    }
-    setLoading(true);
-    try {
-      for (const [, pair] of entries) {
-        await createMatch({
-          team1Id: pair.team1_id,
-          team2Id: pair.team2_id,
-          goals1: 0,
-          goals2: 0,
-          playerGoalsInput: [],
-          jornadaId: selectedJornada
-        });
-      }
-      setConfirmedJornadas(prev => ({ ...prev, [key]: true }));
-      alert('Jornada confirmada y partidos guardados.');
-    } catch (err) {
-      console.error(err);
-      alert('Error al guardar los partidos en la base de datos.');
-    } finally {
-      setLoading(false);
+    if (pending.length) {
+      return alert(
+        `Aún tienes ${pending.length} partidos pendientes de rondas anteriores.\n` +
+        `Por favor, arrástralos a alguna jornada antes de confirmar la última.`
+      );
     }
   }
+
+  // 2) Comprobación normal: si ya está confirmada, no hacemos nada
+  if (confirmedJornadas[key]) return;
+
+  // 3) Confirmación por parte del usuario
+  const ok = window.confirm(
+    '¿Estás seguro de que quieres confirmar esta jornada?\n' +
+    'Una vez confirmada ya no podrás volver a editarla.'
+  );
+  if (!ok) return;
+
+  // 4) Validar que haya al menos un partido en esta jornada
+  const entries = Object.entries(tableSchedule[key] || {});
+  if (entries.length === 0) {
+    return alert('Arrastra al menos un partido para confirmar.');
+  }
+
+  // 5) Guardar en la base y marcarla confirmada
+  setLoading(true);
+  try {
+    for (const [, pair] of entries) {
+      await createMatch({
+        team1Id: pair.team1_id,
+        team2Id: pair.team2_id,
+        goals1: 0,
+        goals2: 0,
+        playerGoalsInput: [],
+        jornadaId: selectedJornada
+      });
+    }
+    setConfirmedJornadas(prev => ({ ...prev, [key]: true }));
+    alert('Jornada confirmada y partidos guardados.');
+  } catch (err) {
+    console.error(err);
+    alert('Error al guardar los partidos en la base de datos.');
+  } finally {
+    setLoading(false);
+  }
+}
+
 
   async function handleSubmitMatch(e) {
     e.preventDefault();
@@ -298,6 +409,34 @@ export default function Partidos() {
     });
   }
 
+    async function handleReturnMatch(e) {
+    e.preventDefault();
+    const json = e.dataTransfer.getData('application/json');
+    if (!json) return;
+
+    const { pair, fromCell, roundIdx } = JSON.parse(json);
+    if (!fromCell || roundIdx === undefined) return;
+
+    // ❷ 1) Quitar del tableSchedule
+    const tableKey = `${activeDiv}-${season}-${selectedJornada}`;
+    const curr = { ...(tableSchedule[tableKey] || {}) };
+    delete curr[fromCell];
+    localStorage.setItem(`table-${tableKey}`, JSON.stringify(curr));
+    setTableSchedule(prev => ({ ...prev, [tableKey]: curr }));
+
+    // ❸ 2) Volver a agregar en scheduledMatches en su ronda original
+    const schedKey = `${activeDiv}-${season}`;
+    const rounds = scheduledMatches[schedKey] || [];
+    const newRounds = rounds.map((pairs, idx) =>
+      idx === roundIdx
+        ? [...pairs, pair]
+        : pairs
+    );
+    localStorage.setItem(`schedule-${schedKey}`, JSON.stringify(newRounds));
+    setScheduledMatches(prev => ({ ...prev, [schedKey]: newRounds }));
+  }
+
+
   return (
     <div className="main" style={{ backgroundColor: '#1F1F1F', minHeight: '100vh' }}>
       <h1 className="title">Partidos</h1>
@@ -322,6 +461,9 @@ export default function Partidos() {
           season={season}
           seasons={seasons}
           handleStartDivision={handleStartDivision}
+          doubleRounds={doubleRounds}             // ← nuevo
+          setDoubleRounds={handleSetDouble}        // ← nuevo
+          loadingDivs={loadingDivs}                // ← nuevo
         />
       )}
       {activeTab === 'Jornadas' && (
@@ -360,6 +502,7 @@ export default function Partidos() {
           getPlayersByTeam={getPlayersByTeam}
           getMatchesByJornada={getMatchesByJornada}
           setMatches={setMatches}
+          handleReturnMatch={handleReturnMatch}
         />
       )}
     </div>

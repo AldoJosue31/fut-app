@@ -738,3 +738,19 @@
   z-index: 10;
 }
 
+.teams-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-bottom: 1rem;
+  padding: 0;
+  list-style: none;
+}
+.team-box {
+  background: #2A2A2A;
+  color: #F3F4F6;
+  padding: .5rem 1rem;
+  border-radius: .375rem;
+  font-weight: 500;
+}
+

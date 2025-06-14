@@ -9,20 +9,22 @@ export default function Torneos({
   setStartDates,
   season,
   seasons,
-  handleStartDivision
+  doubleRounds,           // { [div]: boolean }
+  setDoubleRounds,        // fn(div, value)
+  loadingDivs,            // { [div]: boolean }
+  handleStartDivision     // fn(div, startDate, isDouble)
 }) {
   return (
     <div className="content-box">
       <h2 style={{ color: '#F3F4F6', marginBottom: '1rem' }}>Iniciar Torneos</h2>
+
+      {/* Temporada */}
       <label style={{ color: '#E5E7EB', marginBottom: '0.5rem', display: 'block' }}>
         Temporada
       </label>
       <select
         value={season}
-        onChange={e => {
-          // Partidos.jsx controla setSeason, si es necesario exponer:
-          // setSeason(e.target.value)
-        }}
+        onChange={e => setSeason(e.target.value)}
         style={{
           background: '#2A2A2A',
           border: '1px solid rgba(255,255,255,0.2)',
@@ -33,18 +35,27 @@ export default function Torneos({
           marginBottom: '1.5rem'
         }}
       >
-        {seasons.map(s => (
-          <option key={s} value={s}>
-            {s}
-          </option>
+            {seasons
+      // mostramos sólo los dos del año actual, más los "season" que ya arrancaron
+      .filter(s => {
+        const year = parseInt(s.split(' ')[1], 10);
+        if (year === new Date().getFullYear()) return true;
+        // si en startedDivisions ya existe alguna jornada con esa season,
+        // la incluimos (históricas)
+        return Object.values(startedDivisions).some((_v, i) => seasons[i] === s);
+      })
+      .map(s => (
+          <option key={s} value={s}>{s}</option>
         ))}
       </select>
+
       <div
         className="teams-grid"
         style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}
       >
         {divisions.map(div => {
           const started = !!startedDivisions[div];
+          const loading = !!loadingDivs[div];
           return (
             <div
               key={div}
@@ -53,18 +64,20 @@ export default function Torneos({
               <h3 style={{ color: '#E5E7EB', marginBottom: '0.75rem' }}>
                 {div} div
               </h3>
-              <ul style={{ listStyle: 'none', padding: 0, marginBottom: '1rem' }}>
-                {(teamsByDiv[div] || []).map(t => (
-                  <li key={t.id} style={{ color: '#F3F4F6', marginBottom: '0.5rem' }}>
-                    {t.name}
-                  </li>
-                ))}
+
+              {/* Lista de equipos */}
+              <ul className="teams-list">
+  {(teamsByDiv[div]||[]).map(t => (
+    <li key={t.id} className="team-box">{t.name}</li>
+  ))}
                 {!(teamsByDiv[div] || []).length && (
                   <li style={{ color: '#9CA3AF', fontStyle: 'italic' }}>
                     No hay equipos
                   </li>
                 )}
               </ul>
+
+              {/* Fecha de inicio */}
               <label
                 style={{
                   color: '#E5E7EB',
@@ -78,11 +91,9 @@ export default function Torneos({
                 type="date"
                 value={startDates[div] || ''}
                 onChange={e =>
-                  setStartDates(prev => ({
-                    ...prev,
-                    [div]: e.target.value
-                  }))
+                  setStartDates(prev => ({ ...prev, [div]: e.target.value }))
                 }
+                disabled={started || loading}
                 style={{
                   background: '#2A2A2A',
                   border: '1px solid rgba(255,255,255,0.2)',
@@ -90,9 +101,23 @@ export default function Torneos({
                   color: '#F3F4F6',
                   padding: '0.5rem',
                   width: '100%',
-                  marginBottom: '1rem'
+                  marginBottom: '0.75rem'
                 }}
               />
+
+              {/* Checkbox Doble vuelta */}
+              <label style={{ color: '#E5E7EB', display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+                <input
+                  type="checkbox"
+                  checked={!!doubleRounds[div]}
+                  onChange={e => setDoubleRounds(div, e.target.checked)}
+                  disabled={started || loading}
+                  style={{ marginRight: '0.5rem' }}
+                />
+                Doble vuelta
+              </label>
+
+              {/* Botón */}
               {started ? (
                 <button
                   className="btn success"
@@ -108,16 +133,19 @@ export default function Torneos({
                 </button>
               ) : (
                 <button
-                  onClick={() => handleStartDivision(div)}
+                  onClick={() => handleStartDivision(div, startDates[div], !!doubleRounds[div])}
                   className="btn success"
+                  disabled={loading}
                   style={{
-                    background: '#16A34A',
+                    background: loading ? '#4A7D32' : '#16A34A',
                     color: '#FFF',
                     width: '100%',
-                    padding: '0.75rem'
+                    padding: '0.75rem',
+                    opacity: loading ? 0.7 : 1,
+                    cursor: loading ? 'default' : 'pointer'
                   }}
                 >
-                  COMENZAR TORNEO
+                  {loading ? 'Iniciando…' : 'COMENZAR TORNEO'}
                 </button>
               )}
             </div>
