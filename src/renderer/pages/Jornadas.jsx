@@ -21,7 +21,7 @@ export default function Jornadas({
   loading,
   handleConfirmJornada
 }) {
-  // 1) Solo jornadas confirmadas + la próxima no confirmada
+  // 1) Sólo jornadas confirmadas + la siguiente no confirmada
   const activeJornadas = useMemo(() => {
     const keyFor = j => `${activeDiv}-${season}-${j.id}`;
     const idxNext = jornadas.findIndex(j => !confirmedJornadas[keyFor(j)]);
@@ -30,17 +30,15 @@ export default function Jornadas({
       : jornadas.slice(0, idxNext + 1);
   }, [jornadas, confirmedJornadas, activeDiv, season]);
 
-  // 2) Preparamos la barra de partidos (ronda actual + pendientes), sin duplicados
+  // 2) Barra de partidos: ronda actual + pendientes sin duplicados
   const itemsForBar = useMemo(() => {
     if (!selectedJornada) return [];
     const roundIdx = activeJornadas.findIndex(j => j.id === selectedJornada);
     const schedKey = `${activeDiv}-${season}`;
     const rounds = scheduledMatches[schedKey] || [];
-    const placed = Object.values(
-      tableSchedule[`${activeDiv}-${season}-${selectedJornada}`] || {}
-    );
+    const placed = Object.values(tableSchedule[`${activeDiv}-${season}-${selectedJornada}`] || {});
 
-    // Helper: identificador único de un par + ronda origen
+    // Función para dedupe
     const idOf = (p, origin) => `${p.team1_id}-${p.team2_id}-r${origin}`;
 
     // 2.A) pares de la ronda actual
@@ -50,15 +48,14 @@ export default function Jornadas({
       label: null
     }));
 
-    // 2.B) pendientes de rondas anteriores ya confirmadas
+    // 2.B) pendientes de rondas anteriores confirmadas
     for (let i = 0; i < roundIdx; i++) {
       const prevJ = activeJornadas[i];
       const keyPrev = `${activeDiv}-${season}-${prevJ.id}`;
       if (!confirmLoaded[keyPrev] || !confirmedJornadas[keyPrev]) continue;
       (rounds[i] || []).forEach(p => {
         const wasPlaced = placed.some(r =>
-          r.team1_id === p.team1_id &&
-          r.team2_id === p.team2_id
+          r.team1_id === p.team1_id && r.team2_id === p.team2_id
         );
         if (!wasPlaced) {
           list.push({
@@ -70,12 +67,12 @@ export default function Jornadas({
       });
     }
 
-    // 2.C) quitar duplicados por idOf
+    // 2.C) dedupe
     const seen = new Set();
-    return list.filter(({ pair, origin, label }) => {
-      const key = idOf(pair, origin);
-      if (seen.has(key)) return false;
-      seen.add(key);
+    return list.filter(({ pair, origin }) => {
+      const k = idOf(pair, origin);
+      if (seen.has(k)) return false;
+      seen.add(k);
       return true;
     });
   }, [
@@ -88,6 +85,15 @@ export default function Jornadas({
     confirmLoaded,
     confirmedJornadas
   ]);
+
+  // Índices útiles
+  const roundIdx = activeJornadas.findIndex(j => j.id === selectedJornada);
+  const schedKey = `${activeDiv}-${season}`;
+  const rounds = scheduledMatches[schedKey] || [];
+  const lastIdx = rounds.length - 1;
+  // Detectar si es última jornada y si quedan pendientes
+  const isLast = roundIdx === lastIdx;
+  const hasPendings = itemsForBar.some(item => item.label);
 
   return (
     <>
@@ -119,11 +125,10 @@ export default function Jornadas({
           <div className="jornadas-nav">
             <button
               onClick={() => {
-                const idx = activeJornadas.findIndex(j => j.id === selectedJornada);
-                if (idx > 0) setSelectedJornada(activeJornadas[idx - 1].id);
+                if (roundIdx > 0) setSelectedJornada(activeJornadas[roundIdx - 1].id);
               }}
               className="team-btn"
-              disabled={activeJornadas.findIndex(j => j.id === selectedJornada) <= 0}
+              disabled={roundIdx <= 0}
             >
               {'<'}
             </button>
@@ -134,12 +139,11 @@ export default function Jornadas({
             </span>
             <button
               onClick={() => {
-                const idx = activeJornadas.findIndex(j => j.id === selectedJornada);
-                if (idx < activeJornadas.length - 1)
-                  setSelectedJornada(activeJornadas[idx + 1].id);
+                if (roundIdx < activeJornadas.length - 1)
+                  setSelectedJornada(activeJornadas[roundIdx + 1].id);
               }}
               className="team-btn"
-              disabled={activeJornadas.findIndex(j => j.id === selectedJornada) >= activeJornadas.length - 1}
+              disabled={roundIdx >= activeJornadas.length - 1}
             >
               {'>'}
             </button>
@@ -194,9 +198,6 @@ export default function Jornadas({
                                   draggable={!isConfirmed}
                                   onDragStart={e => {
                                     if (!isConfirmed) {
-                                      const roundIdx = activeJornadas.findIndex(
-                                        j => j.id === selectedJornada
-                                      );
                                       e.dataTransfer.setData(
                                         'application/json',
                                         JSON.stringify({
@@ -255,7 +256,7 @@ export default function Jornadas({
               }}
               onDrop={handleReturnMatch}
             >
-              {itemsForBar.map(({ pair, origin, label }, idx) => {
+              {itemsForBar.map(({ pair, origin, label }) => {
                 const t1 = teamsByDiv[activeDiv].find(t => t.id === pair.team1_id) || {};
                 const t2 = teamsByDiv[activeDiv].find(t => t.id === pair.team2_id) || {};
                 return (
@@ -290,21 +291,34 @@ export default function Jornadas({
             <button
               className="btn success"
               style={{
-                background: '#16A34A',
+                background: isLast && hasPendings ? '#A0A0A0' : '#16A34A',
                 color: '#FFF',
                 marginTop: '1rem',
                 padding: '0.75rem',
-                width: '100%'
+                width: '100%',
+                cursor: isLast && hasPendings ? 'not-allowed' : 'pointer'
               }}
-              onClick={handleConfirmJornada}
+              onClick={() => {
+                if (isLast && hasPendings) {
+                  alert(
+                    `No puedes confirmar la última jornada mientras haya partidos pendientes.\n` +
+                    `Arrástralos a la tabla para completar la jornada.`
+                  );
+                } else {
+                  handleConfirmJornada();
+                }
+              }}
               disabled={
                 loading ||
-                confirmedJornadas[`${activeDiv}-${season}-${selectedJornada}`]
+                confirmedJornadas[`${activeDiv}-${season}-${selectedJornada}`] ||
+                (isLast && hasPendings)
               }
             >
               {confirmedJornadas[`${activeDiv}-${season}-${selectedJornada}`]
                 ? 'Confirmado'
-                : loading ? 'Guardando…' : 'Confirmar Jornada'}
+                : loading
+                  ? 'Guardando…'
+                  : 'Confirmar Jornada'}
             </button>
           )}
         </div>
