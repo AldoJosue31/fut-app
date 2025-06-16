@@ -21,97 +21,76 @@ export default function Jornadas({
   loading,
   handleConfirmJornada
 }) {
-  // 1) Sólo jornadas confirmadas + la siguiente no confirmada
+  // 1) Solo jornadas confirmadas + la siguiente no confirmada
   const activeJornadas = useMemo(() => {
     const keyFor = j => `${activeDiv}-${season}-${j.id}`;
     const idxNext = jornadas.findIndex(j => !confirmedJornadas[keyFor(j)]);
-    return idxNext === -1
-      ? jornadas
-      : jornadas.slice(0, idxNext + 1);
+    return idxNext === -1 ? jornadas : jornadas.slice(0, idxNext + 1);
   }, [jornadas, confirmedJornadas, activeDiv, season]);
 
-  // 2) Barra de partidos: ronda actual + pendientes sin duplicados
+  // Índices para la jornada actual
+  const roundIdx = activeJornadas.findIndex(j => j.id === selectedJornada);
+  const schedKey = `${activeDiv}-${season}`;
+  const rounds = scheduledMatches[schedKey] || [];
+  const lastIdx = rounds.length - 1;
+  const isLast = roundIdx === lastIdx;
+
+  // 2) Barra de partidos: ronda actual + pendientes, sin duplicados
   const itemsForBar = useMemo(() => {
-    if (!selectedJornada) return [];
-    const roundIdx = activeJornadas.findIndex(j => j.id === selectedJornada);
-    const schedKey = `${activeDiv}-${season}`;
-    const rounds = scheduledMatches[schedKey] || [];
-    const placed = Object.values(tableSchedule[`${activeDiv}-${season}-${selectedJornada}`] || {});
-
-    // Función para dedupe
+    if (roundIdx < 0) return [];
+    const placed = Object.values(
+      tableSchedule[`${activeDiv}-${season}-${selectedJornada}`] || {}
+    );
     const idOf = (p, origin) => `${p.team1_id}-${p.team2_id}-r${origin}`;
-
-    // 2.A) pares de la ronda actual
     const list = (rounds[roundIdx] || []).map(p => ({
       pair: p,
       origin: roundIdx,
       label: null
     }));
-
-    // 2.B) pendientes de rondas anteriores confirmadas
     for (let i = 0; i < roundIdx; i++) {
-      const prevJ = activeJornadas[i];
-      const keyPrev = `${activeDiv}-${season}-${prevJ.id}`;
+      const keyPrev = `${activeDiv}-${season}-${activeJornadas[i].id}`;
       if (!confirmLoaded[keyPrev] || !confirmedJornadas[keyPrev]) continue;
       (rounds[i] || []).forEach(p => {
-        const wasPlaced = placed.some(r =>
-          r.team1_id === p.team1_id && r.team2_id === p.team2_id
-        );
-        if (!wasPlaced) {
-          list.push({
-            pair: p,
-            origin: i,
-            label: `(Pendiente J${i + 1})`
-          });
+        if (!placed.some(r => r.team1_id === p.team1_id && r.team2_id === p.team2_id)) {
+          list.push({ pair: p, origin: i, label: `(Pendiente J${i + 1})` });
         }
       });
     }
-
-    // 2.C) dedupe
+    // dedupe
     const seen = new Set();
-    return list.filter(({ pair, origin }) => {
-      const k = idOf(pair, origin);
-      if (seen.has(k)) return false;
-      seen.add(k);
+    const deduped = list.filter(({ pair, origin }) => {
+      const key = idOf(pair, origin);
+      if (seen.has(key)) return false;
+      seen.add(key);
       return true;
     });
+    // siempre devolvemos deduped, incluso en última jornada
+    return deduped;
   }, [
     activeJornadas,
-    selectedJornada,
+    roundIdx,
     scheduledMatches,
     tableSchedule,
     activeDiv,
     season,
     confirmLoaded,
-    confirmedJornadas
+    confirmedJornadas,
+    selectedJornada
   ]);
-
-  // Índices útiles
-  const roundIdx = activeJornadas.findIndex(j => j.id === selectedJornada);
-  const schedKey = `${activeDiv}-${season}`;
-  const rounds = scheduledMatches[schedKey] || [];
-  const lastIdx = rounds.length - 1;
-  // Detectar si es última jornada y si quedan pendientes
-  const isLast = roundIdx === lastIdx;
-  const hasPendings = itemsForBar.some(item => item.label);
 
   return (
     <>
-      {/* División */}
+      {/* División selector */}
       <div className="tabs" style={{ marginBottom: '1rem' }}>
-        {divisions.filter(d => startedDivisions[d]).map(div => {
-          const isActive = div === activeDiv;
-          return (
-            <button
-              key={div}
-              onClick={() => setActiveDiv(div)}
-              className={isActive ? 'tab active-tab' : 'tab'}
-              style={{ opacity: isActive ? 1 : 0.7, cursor: 'pointer' }}
-            >
-              {div}
-            </button>
-          );
-        })}
+        {divisions.filter(d => startedDivisions[d]).map(div => (
+          <button
+            key={div}
+            onClick={() => setActiveDiv(div)}
+            className={div === activeDiv ? 'tab active-tab' : 'tab'}
+          >
+            {div}
+          </button>
+        ))}
       </div>
 
       {/* Si no hay jornadas activas */}
@@ -121,29 +100,27 @@ export default function Jornadas({
         </div>
       ) : (
         <div className="content-box">
-          {/* Navegación */}
+          {/* Navegación de jornadas */}
           <div className="jornadas-nav">
             <button
-              onClick={() => {
-                if (roundIdx > 0) setSelectedJornada(activeJornadas[roundIdx - 1].id);
-              }}
-              className="team-btn"
+              onClick={() =>
+                roundIdx > 0 && setSelectedJornada(activeJornadas[roundIdx - 1].id)
+              }
               disabled={roundIdx <= 0}
+              className="team-btn"
             >
               {'<'}
             </button>
             <span className="jornada-title" style={{ margin: '0 1rem', color: '#F3F4F6' }}>
-              {selectedJornada
-                ? activeJornadas.find(j => j.id === selectedJornada)?.name
-                : 'Sin jornadas'}
+              {activeJornadas.find(j => j.id === selectedJornada)?.name || 'Sin jornadas'}
             </span>
             <button
-              onClick={() => {
-                if (roundIdx < activeJornadas.length - 1)
-                  setSelectedJornada(activeJornadas[roundIdx + 1].id);
-              }}
-              className="team-btn"
+              onClick={() =>
+                roundIdx < activeJornadas.length - 1 &&
+                setSelectedJornada(activeJornadas[roundIdx + 1].id)
+              }
               disabled={roundIdx >= activeJornadas.length - 1}
+              className="team-btn"
             >
               {'>'}
             </button>
@@ -168,7 +145,9 @@ export default function Jornadas({
                   <thead>
                     <tr>
                       <th>Hora</th>
-                      {['L','Ma','Mi','J','V','S'].map(d => <th key={d}>{d}</th>)}
+                      {['L', 'Ma', 'Mi', 'J', 'V', 'S'].map(d => (
+                        <th key={d}>{d}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
@@ -176,8 +155,14 @@ export default function Jornadas({
                       <tr key={r}>
                         <td style={{ color: '#E5E7EB' }}>{`${hora} p.m.`}</td>
                         {[0,1,2,3,4,5].map(c => {
-                          const cellKey = `${r}-${c}`;
-                          const match = (tableSchedule[key] || {})[cellKey];
+                          const cell = `${r}-${c}`;
+                          const match = (tableSchedule[key] || {})[cell];
+                          const isPending =
+                            match &&
+                            itemsForBar.some(
+                              it =>
+                                it.pair === match && it.origin < roundIdx && it.label
+                            );
                           return (
                             <td
                               key={c}
@@ -186,12 +171,12 @@ export default function Jornadas({
                                 border: '1px solid rgba(255,255,255,0.2)',
                                 height: '4rem'
                               }}
-                              onDragOver={e => {
-                                if (isLoaded && !isConfirmed && !match) e.preventDefault();
-                              }}
-                              onDrop={e => {
-                                if (isLoaded && !isConfirmed && !match) handleDrop(e, r, c);
-                              }}
+                              onDragOver={e =>
+                                isLoaded && !isConfirmed && !match && e.preventDefault()
+                              }
+                              onDrop={e =>
+                                isLoaded && !isConfirmed && !match && handleDrop(e, r, c)
+                              }
                             >
                               {match && (
                                 <div
@@ -200,32 +185,46 @@ export default function Jornadas({
                                     if (!isConfirmed) {
                                       e.dataTransfer.setData(
                                         'application/json',
-                                        JSON.stringify({
-                                          pair: match,
-                                          fromCell: cellKey,
-                                          roundIdx
-                                        })
+                                        JSON.stringify({ pair: match, fromCell: cell, roundIdx })
                                       );
                                     }
                                   }}
                                   className="match-card"
                                   style={{
-                                    position: 'absolute',
-                                    top: 0, left: 0, right: 0, bottom: 0,
-                                    background: '#3A3A3A',
-                                    borderRadius: '0.375rem',
-                                    padding: '0.5rem',
-                                    color: '#F3F4F6',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    cursor: isConfirmed ? 'default' : 'move',
-                                    opacity: isConfirmed ? 0.7 : 1
+                                    position:'absolute',
+                                    top:0, left:0, right:0, bottom:0,
+                                    background:'#3A3A3A',
+                                    borderRadius:'0.375rem',
+                                    padding:'0.5rem',
+                                    color:'#F3F4F6',
+                                    display:'flex',
+                                    alignItems:'center',
+                                    justifyContent:'center',
+                                    cursor:isConfirmed?'default':'move',
+                                    opacity:isConfirmed?0.7:1
                                   }}
                                 >
-                                  {teamsByDiv[activeDiv].find(t => t.id === match.team1_id)?.name}
+                                  {teamsByDiv[activeDiv].find(t => t.id===match.team1_id)?.name}
                                   {' vs '}
-                                  {teamsByDiv[activeDiv].find(t => t.id === match.team2_id)?.name}
+                                  {teamsByDiv[activeDiv].find(t => t.id===match.team2_id)?.name}
+                                  {isPending && (
+                                    <span
+                                      style={{
+                                        position:'absolute',
+                                        top:'0.2rem',
+                                        right:'0.2rem',
+                                        background:'#F59E0B',
+                                        borderRadius:'50%',
+                                        width:'1rem',
+                                        height:'1rem',
+                                        display:'flex',
+                                        alignItems:'center',
+                                        justifyContent:'center',
+                                        fontSize:'0.75rem',
+                                        color:'#000'
+                                      }}
+                                    >P</span>
+                                  )}
                                 </div>
                               )}
                             </td>
@@ -239,70 +238,73 @@ export default function Jornadas({
             );
           })()}
 
-          {/* Barra de partidos arrastrables */}
-          {selectedJornada && itemsForBar.length > 0 && (
+          {/* Barra de partidos (siempre visible) */}
+          {selectedJornada && (
             <div
               className="matches-bar"
               style={{
-                display: 'flex',
-                gap: '1rem',
-                marginTop: '1rem',
-                padding: '1rem',
-                background: '#2A2A2A',
-                borderRadius: '0.5rem'
+                display:'flex',
+                gap:'1rem',
+                marginTop:'1rem',
+                padding:'1rem',
+                background:'#2A2A2A',
+                borderRadius:'0.5rem'
               }}
-              onDragOver={e => {
-                if (e.dataTransfer.types.includes('application/json')) e.preventDefault();
-              }}
+              onDragOver={e =>
+                e.dataTransfer.types.includes('application/json') && e.preventDefault()
+              }
               onDrop={handleReturnMatch}
             >
               {itemsForBar.map(({ pair, origin, label }) => {
-                const t1 = teamsByDiv[activeDiv].find(t => t.id === pair.team1_id) || {};
-                const t2 = teamsByDiv[activeDiv].find(t => t.id === pair.team2_id) || {};
+                const t1 = teamsByDiv[activeDiv].find(t=>t.id===pair.team1_id) || {};
+                const t2 = teamsByDiv[activeDiv].find(t=>t.id===pair.team2_id) || {};
                 return (
                   <div
                     key={`${pair.team1_id}-${pair.team2_id}-${origin}`}
                     className="match-card"
                     draggable
-                    onDragStart={e => {
+                    onDragStart={e =>
                       e.dataTransfer.setData(
                         'application/json',
                         JSON.stringify({ pair, roundIdx: origin, fromCell: null })
-                      );
-                    }}
+                      )
+                    }
                     style={{
-                      background: '#3A3A3A',
-                      borderRadius: '0.375rem',
-                      padding: '0.75rem',
-                      color: '#F3F4F6',
-                      cursor: 'move'
+                      background:'#3A3A3A',
+                      borderRadius:'0.375rem',
+                      padding:'0.75rem',
+                      color:'#F3F4F6',
+                      cursor:'move'
                     }}
                   >
                     {t1.name} vs {t2.name}
-                    {label && <em style={{ marginLeft: '0.5rem' }}>{label}</em>}
+                    {label && (
+                      <em style={{ marginLeft:'0.5rem' }}>{label}</em>
+                    )}
                   </div>
                 );
               })}
             </div>
           )}
 
-          {/* Confirmar jornada */}
+          {/* Botón Confirmar jornada */}
           {selectedJornada && (
             <button
               className="btn success"
               style={{
-                background: isLast && hasPendings ? '#A0A0A0' : '#16A34A',
-                color: '#FFF',
-                marginTop: '1rem',
-                padding: '0.75rem',
-                width: '100%',
-                cursor: isLast && hasPendings ? 'not-allowed' : 'pointer'
+                background:
+                  isLast && itemsForBar.length > 0 ? '#A0A0A0' : '#16A34A',
+                cursor:
+                  isLast && itemsForBar.length > 0 ? 'not-allowed' : 'pointer',
+                marginTop:'1rem',
+                padding:'0.75rem',
+                width:'100%'
               }}
               onClick={() => {
-                if (isLast && hasPendings) {
+                if (isLast && itemsForBar.length > 0) {
                   alert(
-                    `No puedes confirmar la última jornada mientras haya partidos pendientes.\n` +
-                    `Arrástralos a la tabla para completar la jornada.`
+                    'En la última jornada debes programar TODOS los partidos antes de confirmar.\n' +
+                    'Arrástralos todos a la tabla de horario.'
                   );
                 } else {
                   handleConfirmJornada();
@@ -311,14 +313,12 @@ export default function Jornadas({
               disabled={
                 loading ||
                 confirmedJornadas[`${activeDiv}-${season}-${selectedJornada}`] ||
-                (isLast && hasPendings)
+                (isLast && itemsForBar.length > 0)
               }
             >
               {confirmedJornadas[`${activeDiv}-${season}-${selectedJornada}`]
                 ? 'Confirmado'
-                : loading
-                  ? 'Guardando…'
-                  : 'Confirmar Jornada'}
+                : loading ? 'Guardando…' : 'Confirmar Jornada'}
             </button>
           )}
         </div>
