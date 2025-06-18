@@ -1,4 +1,3 @@
-// src/renderer/pages/Equipos.jsx
 import React, { useState, useEffect } from 'react';
 import '../styles/styles.css';
 import {
@@ -91,7 +90,10 @@ export default function Equipos() {
     setStats({ wins: 0, draws: 0, losses: 0 });
 
     if (team) {
-      setFormTeam({ ...team });
+      // Omitir campos de estadísticas al editar para no enviar columnas inexistentes
+      const { histWins, histDraws, histLosses, ...base } = team;
+      setFormTeam({ ...base });
+
       const players = await getPlayersByTeam(team.id);
       const enriched = await Promise.all(
         players.map(async p => {
@@ -148,7 +150,14 @@ export default function Equipos() {
     setLoading(true);
     try {
       let teamId = formTeam.id;
-      const { id, ...payload } = formTeam;
+      // Sólo incluir campos permitidos
+      const payload = {
+        name: formTeam.name,
+        color: formTeam.color,
+        founded: formTeam.founded,
+        status: formTeam.status,
+        division: formTeam.division
+      };
 
       if (teamId) {
         await updateTeam(teamId, payload);
@@ -168,6 +177,7 @@ export default function Equipos() {
         await addPlayers(toAdd);
       }
 
+      // Recargar equipos
       const data = await getTeams();
       const filtered = data
         .filter(t => t.division === division)
