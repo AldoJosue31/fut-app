@@ -3,9 +3,10 @@ import React from 'react';
 
 export default function Torneos({
   divisions,
-  teamsByDiv,
+  tournamentTeams,      // ← nuevo
   startedDivisions,
   startDates,
+  allTeams,
   setStartDates,
   season,
   seasons,
@@ -56,24 +57,27 @@ export default function Torneos({
         {divisions.map(div => {
           const started = !!startedDivisions[div];
           const loading = !!loadingDivs[div];
-          return (
-            <div
-              key={div}
-              style={{ background: '#3A3A3A', borderRadius: '0.75rem', padding: '1rem' }}
-            >
-              <h3 style={{ color: '#E5E7EB', marginBottom: '0.75rem' }}>
-                {div} div
-              </h3>
 
-              {/* Lista de equipos */}
+          // 1) saco la lista de equipos visibles:
+          //    a) todos los activos
+          //    b) más los inactivos que ya estén en tournamentTeams
+           const list = allTeams.filter(t =>
+             t.division === div &&
+             (t.status === 'Activo' || tournamentTeams.includes(t.id))
+           );
+
+          return (
+            <div key={div} style={{ background: '#3A3A3A', borderRadius: '0.75rem', padding: '1rem' }}>
+              <h3 style={{ color: '#E5E7EB', marginBottom: '0.75rem' }}>{div} div</h3>
+
               <ul className="teams-list">
-  {(teamsByDiv[div]||[]).map(t => (
-    <li key={t.id} className="team-box">{t.name}</li>
-  ))}
-                {!(teamsByDiv[div] || []).length && (
-                  <li style={{ color: '#9CA3AF', fontStyle: 'italic' }}>
-                    No hay equipos
+                {list.map(t => (
+                  <li key={t.id} className="team-box">
+                    {t.name} {t.status !== 'Activo' && <em style={{ opacity: 0.6 }}>(inactivo)</em>}
                   </li>
+                ))}
+                {!list.length && (
+                  <li style={{ color: '#9CA3AF', fontStyle: 'italic' }}>No hay equipos</li>
                 )}
               </ul>
 

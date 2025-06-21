@@ -14,7 +14,7 @@ import { supabase } from '../supabaseClient.js';
 const tabs = ['Torneos', 'Jornadas'];
 const years = Array.from({ length: 6 }, (_, i) => 2025 + i);
 const seasons = years.flatMap(y => [`Clausura ${y}`, `Apertura ${y}`]);
-const hours = ['18:00', '19:00', '20:00', '21:00', '22:00', '23:00'];
+const hours = ['17:00','18:00', '19:00', '20:00', '21:00', '22:00', '23:00'];
 
 export default function Partidos() {
   const [activeTab, setActiveTab] = useState('Torneos');
@@ -22,7 +22,8 @@ export default function Partidos() {
   const [loadingDivs, setLoadingDivs] = useState({});      // ← nuevo
   // Estados compartidos
   const [divisions, setDivisions] = useState([]);
-  const [teamsByDiv, setTeamsByDiv] = useState({});
+    const [teamsByDiv, setTeamsByDiv] = useState({});          // ← sólo activos
+  const [allTeams, setAllTeams] = useState([]);
   const [startedDivisions, setStartedDivisions] = useState({});
   const [startDates, setStartDates] = useState({});
   const [activeDiv, setActiveDiv] = useState(null);
@@ -73,10 +74,14 @@ export default function Partidos() {
       setDivisions(divNames);
       setActiveDiv(divNames[0] || null);
 
-      const allTeams = await getTeams();
-      setTeamsByDiv(Object.fromEntries(
-        divNames.map(dv => [dv, allTeams.filter(t => t.division === dv && t.status === 'Activo')])
-      ));
+     const equipos = await getTeams();
+     setAllTeams(equipos);
+     setTeamsByDiv(Object.fromEntries(
+       divNames.map(dv => [
+         dv,
+         equipos.filter(t => t.division===dv && t.status==='Activo')
+       ])
+     ));
 
       const allJ = await getJornadas();
       setAllJornadas(allJ);
@@ -272,37 +277,50 @@ const { data: tour, error: tourError } = await supabase
     }
   }, [activeDiv, season, selectedJornada]);
 
-  function handleDrop(e, row, col) {
-    e.preventDefault();
-    const json = e.dataTransfer.getData('application/json');
-    if (!json) return; let data;
-    try { data = JSON.parse(json); } catch { return; }
-    const { pair, roundIdx, fromCell } = data;
-    if (roundIdx !== undefined) {
-      const schedKey = `${activeDiv}-${season}`;
-      const rounds = scheduledMatches[schedKey] || [];
-      const updatedRounds = rounds.map((pairs, idx) =>
-        idx === roundIdx
-          ? pairs.filter(p => !(p.team1_id === pair.team1_id && p.team2_id === pair.team2_id))
-          : pairs
-      );
-      localStorage.setItem(`schedule-${schedKey}`, JSON.stringify(updatedRounds));
-      setScheduledMatches(prev => ({ ...prev, [schedKey]: updatedRounds }));
-    }
-    if (fromCell) {
-      const tableKey = `${activeDiv}-${season}-${selectedJornada}`;
-      const curr = tableSchedule[tableKey] || {};
-      delete curr[fromCell];
-      localStorage.setItem(`table-${tableKey}`, JSON.stringify(curr));
-      setTableSchedule(prev => ({ ...prev, [tableKey]: { ...curr } }));
-    }
-    const tableKey = `${activeDiv}-${season}-${selectedJornada}`;
-    const currTable = tableSchedule[tableKey] || {};
-    const cellKey = `${row}-${col}`;
-    currTable[cellKey] = pair;
-    localStorage.setItem(`table-${tableKey}`, JSON.stringify(currTable));
-    setTableSchedule(prev => ({ ...prev, [tableKey]: { ...currTable } }));
+function handleDrop(e, row, col) {
+  e.preventDefault();
+  const data = JSON.parse(e.dataTransfer.getData('application/json'));
+  const { pair, roundIdx: fromRound, fromCell, label: fromLabel } = data;
+
+  // 1) Si viene de la barra, lo quita de scheduledMatches...
+  if (fromRound !== undefined) {
+    const schedKey = `${activeDiv}-${season}`;
+    const rounds = scheduledMatches[schedKey] || [];
+    const updatedRounds = rounds.map((pairs, idx) =>
+      idx === fromRound
+        ? pairs.filter(p =>
+            !(p.team1_id === pair.team1_id && p.team2_id === pair.team2_id)
+          )
+        : pairs
+    );
+    localStorage.setItem(`schedule-${schedKey}`, JSON.stringify(updatedRounds));
+    setScheduledMatches(prev => ({ ...prev, [schedKey]: updatedRounds }));
   }
+
+  // 2) Si viene de otra celda, la limpia
+  if (fromCell) {
+    const tableKey = `${activeDiv}-${season}-${selectedJornada}`;
+    const curr = { ...(tableSchedule[tableKey] || {}) };
+    delete curr[fromCell];
+    localStorage.setItem(`table-${tableKey}`, JSON.stringify(curr));
+    setTableSchedule(prev => ({ ...prev, [tableKey]: curr }));
+  }
+
+  // 3) Inserta EN LA NUEVA CELDA, guardando pair, origin y label
+  const tableKey = `${activeDiv}-${season}-${selectedJornada}`;
+  setTableSchedule(prev => {
+    const curr = { ...(prev[tableKey] || {}) };
+    const cellKey = `${row}-${col}`;
+    curr[cellKey] = {
+      pair,
+      origin: fromRound,
+      label: fromLabel ?? null
+    };
+    localStorage.setItem(`table-${tableKey}`, JSON.stringify(curr));
+    return { ...prev, [tableKey]: curr };
+  });
+}
+
 
 async function handleConfirmJornada() {
   if (!selectedJornada) return;
@@ -356,10 +374,12 @@ async function handleConfirmJornada() {
   // 5) Guardar en la base y marcarla confirmada
   setLoading(true);
   try {
-    for (const [, pair] of entries) {
-      await createMatch({
-        team1Id: pair.team1_id,
-        team2Id: pair.team2_id,
+   for (const [, cell] of entries) {
+     // EXTRAEMOS el par real
+     const { team1_id, team2_id } = cell.pair;
+     await createMatch({
+       team1Id: team1_id,
+       team2Id: team2_id,
         goals1: 0,
         goals2: 0,
         playerGoalsInput: [],
@@ -409,36 +429,35 @@ async function handleConfirmJornada() {
     });
   }
 
-    async function handleReturnMatch(e) {
-    e.preventDefault();
-    const json = e.dataTransfer.getData('application/json');
-    if (!json) return;
+async function handleReturnMatch(e) {
+  e.preventDefault();
+  const data = JSON.parse(e.dataTransfer.getData('application/json'));
+  const { pair, fromCell, roundIdx, label } = data;
+  if (!fromCell || roundIdx === undefined) return;
 
-    const { pair, fromCell, roundIdx } = JSON.parse(json);
-    if (!fromCell || roundIdx === undefined) return;
+  // 1) Quitar de tableSchedule
+  const tableKey = `${activeDiv}-${season}-${selectedJornada}`;
+  const curr = { ...(tableSchedule[tableKey] || {}) };
+  delete curr[fromCell];
+  localStorage.setItem(`table-${tableKey}`, JSON.stringify(curr));
+  setTableSchedule(prev => ({ ...prev, [tableKey]: curr }));
 
-    // ❷ 1) Quitar del tableSchedule
-    const tableKey = `${activeDiv}-${season}-${selectedJornada}`;
-    const curr = { ...(tableSchedule[tableKey] || {}) };
-    delete curr[fromCell];
-    localStorage.setItem(`table-${tableKey}`, JSON.stringify(curr));
-    setTableSchedule(prev => ({ ...prev, [tableKey]: curr }));
+  // 2) Volver a agregar en scheduledMatches en su ronda original
+  const schedKey = `${activeDiv}-${season}`;
+  const rounds = scheduledMatches[schedKey] || [];
+  const newRounds = rounds.map((pairs, idx) =>
+    idx === roundIdx
+      ? [...pairs, pair]
+      : pairs
+  );
+  localStorage.setItem(`schedule-${schedKey}`, JSON.stringify(newRounds));
+  setScheduledMatches(prev => ({ ...prev, [schedKey]: newRounds }));
+}
 
-    // ❸ 2) Volver a agregar en scheduledMatches en su ronda original
-    const schedKey = `${activeDiv}-${season}`;
-    const rounds = scheduledMatches[schedKey] || [];
-    const newRounds = rounds.map((pairs, idx) =>
-      idx === roundIdx
-        ? [...pairs, pair]
-        : pairs
-    );
-    localStorage.setItem(`schedule-${schedKey}`, JSON.stringify(newRounds));
-    setScheduledMatches(prev => ({ ...prev, [schedKey]: newRounds }));
-  }
 
 
   return (
-    <div className="main" style={{ backgroundColor: '#1F1F1F', minHeight: '100vh' }}>
+    <div className="main" >
       <h1 className="title">Partidos</h1>
       <div className="tabs">
         {tabs.map(tab => (
@@ -455,8 +474,10 @@ async function handleConfirmJornada() {
         <Torneos
           divisions={divisions}
           teamsByDiv={teamsByDiv}
+          tournamentTeams={tournamentTeams}      // ← nuevo
           startedDivisions={startedDivisions}
           startDates={startDates}
+          allTeams={allTeams}
           setStartDates={setStartDates}
           season={season}
           seasons={seasons}
@@ -484,6 +505,7 @@ async function handleConfirmJornada() {
           confirmLoaded={confirmLoaded}
           confirmedJornadas={confirmedJornadas}
           handleDrop={handleDrop}
+          allTeams={allTeams}
           hours={hours}
           loading={loading}
           handleConfirmJornada={handleConfirmJornada}
