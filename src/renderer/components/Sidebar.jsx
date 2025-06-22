@@ -148,6 +148,11 @@ export default function Sidebar() {
     };
     setTemplateConfig(updated);
     localStorage.setItem('lineupConfig', JSON.stringify(updated));
+       // Guardamos también un par simplificado como "última configuración":
+   localStorage.setItem(
+     'currentLineup',
+     JSON.stringify({ starters: startersCount, subs: subsCount })
+   );
        //  también guardamos la season para que currentSeason sea consistente
    localStorage.setItem('season', currentSeason);
     setShowConfig(false);
