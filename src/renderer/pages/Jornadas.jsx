@@ -1,6 +1,7 @@
 // src/renderer/pages/Jornadas.jsx
 import React, { useMemo } from 'react';
 
+
 export default function Jornadas({
   divisions,
   startedDivisions,
@@ -19,7 +20,11 @@ export default function Jornadas({
   handleReturnMatch,
   hours,
   loading,
-  handleConfirmJornada
+  handleConfirmJornada,
+  onSelectMatch,
+  showResultModal,
+  onCloseResultModal,
+  selectedMatchEntry
 }) {
   // 0) Mapa id → equipo
   const teamMap = useMemo(
@@ -196,43 +201,51 @@ export default function Jornadas({
           onDragOver={e => isLoaded && !isConfirmed && e.preventDefault()}
           onDrop={e => isLoaded && !isConfirmed && handleDrop(e, r, c)}
         >
-          <div
-            draggable={!isConfirmed}
-            onDragStart={e => {
-              if (!isConfirmed) {
-                e.dataTransfer.setData(
-                  'application/json',
-                  JSON.stringify({
-                    pair: entryObj.pair,
-                    roundIdx: entryObj.origin,
-                    fromCell: cell
-                  })
-                );
-              }
-            }}
-            className="match-card"
-            style={{
-              position:'absolute',
-              top:0, left:0, right:0, bottom:0,
-              background:'#3A3A3A',
-              borderRadius:'0.375rem',
-              padding:'0.5rem',
-              color:'#F3F4F6',
-              display:'flex',
-              alignItems:'center',
-              justifyContent:'center',
-              cursor:isConfirmed?'default':'move',
-              opacity:isConfirmed?0.7:1
-            }}
-          >
-            {teamMap[entryObj.pair.team1_id]?.name} vs{' '}
-            {teamMap[entryObj.pair.team2_id]?.name}
-            {entryObj.origin < roundIdx && (
-              <em style={{ marginLeft: '0.5rem', fontSize: '0.75rem' }}>
-                (P.P. J{entryObj.origin + 1})
-              </em>
-            )}
-          </div>
+         {/* Si la jornada está confirmada, al hacer click abrimos el modal */}
+         <div
+           className="match-card"
+           style={{
+             position:'absolute', top:0, left:0, right:0, bottom:0,
+             background:'#3A3A3A', borderRadius:'0.375rem', padding:'0.5rem',
+             color:'#F3F4F6', display:'flex', alignItems:'center',
+             justifyContent:'center',
+             cursor: isConfirmed ? 'pointer' : 'move',
+             opacity: isConfirmed ? 0.7 : 1
+           }}
+           draggable={!isConfirmed}
+           onDragStart={e => {
+             if (!isConfirmed) {
+               e.dataTransfer.setData(
+                 'application/json',
+                 JSON.stringify({
+                   pair: entryObj.pair,
+                   roundIdx: entryObj.origin,
+                   fromCell: cell
+                 })
+               );
+             }
+           }}
+onClick={() => {
+  if (isConfirmed) {
+    onSelectMatch({
+      ...entryObj,
+      jornadaId: selectedJornada,
+      team1Name: teamMap[entryObj.pair.team1_id].name,
+      team2Name: teamMap[entryObj.pair.team2_id].name,
+      id: entryObj.id  // asegúrate de tener el id de la DB aquí
+    });
+  }
+}}
+
+         >
+           {teamMap[entryObj.pair.team1_id]?.name} vs {' '}
+           {teamMap[entryObj.pair.team2_id]?.name}
+           {entryObj.origin < roundIdx && (
+             <em style={{ marginLeft:'0.5rem', fontSize:'0.75rem' }}>
+               (P.P. J{entryObj.origin + 1})
+             </em>
+           )}
+         </div>
         </td>
       );
     })}

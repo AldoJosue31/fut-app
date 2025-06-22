@@ -10,6 +10,7 @@ import { getJornadas, addJornada, isTorneoComenzado } from '../services/jornadas
 import { getDivisions } from '../services/divisionsService.js';
 import { getTournamentTeams, addTournamentTeams } from '../services/tournamentService';
 import { supabase } from '../supabaseClient.js';
+import ResultModal from '../components/ResultModal.jsx';
 
 const tabs = ['Torneos', 'Jornadas'];
 const years = Array.from({ length: 6 }, (_, i) => 2025 + i);
@@ -21,6 +22,8 @@ export default function Partidos() {
   const [doubleRounds, setDoubleRounds] = useState({});    // ← nuevo
   const [loadingDivs, setLoadingDivs] = useState({});      // ← nuevo
   // Estados compartidos
+  const [selectedMatchEntry, setSelectedMatchEntry] = useState(null);
+const [showResultModal, setShowResultModal] = useState(false);
   const [divisions, setDivisions] = useState([]);
     const [teamsByDiv, setTeamsByDiv] = useState({});          // ← sólo activos
   const [allTeams, setAllTeams] = useState([]);
@@ -45,6 +48,8 @@ export default function Partidos() {
   const [loading, setLoading] = useState(false);
   const [confirmedJornadas, setConfirmedJornadas] = useState({});
   const [confirmLoaded, setConfirmLoaded] = useState({});
+  const teamMap = Object.fromEntries(allTeams.map(t => [t.id, t]));
+  const [templateConfig, setTemplateConfig] = useState({});
 
   // Generador round-robin
   function roundRobin(teams) {
@@ -173,69 +178,69 @@ async function handleStartDivision(div, startDate, isDouble = false) {
       return alert(`Ya existe un torneo iniciado para ${div} en ${season}.`);
     }
 
+    // ── Evitar iniciar dos torneos simultáneos ──
+    const { data: ttData, error: ttError } = await supabase
+      .from('tournament_teams')
+      .select('id')
+      .eq('division', div)
+      .eq('season', season)
+      .limit(1);
+    if (ttError) {
+      console.error('Error comprobando torneo existente:', ttError);
+      return alert('No se pudo verificar si ya existe un torneo.');
+    }
+    if (ttData.length > 0) {
+      return alert(`Ya hay un torneo activo de la división ${div} en ${season}.`);
+    }
 
-     // ── 1.B) Evitar iniciar dos torneos simultáneos en la misma división/season ──
-     // Comprobamos en tournament_teams si ya hay un registro de este div+season
-     const { data: ttData, error: ttError } = await supabase
-       .from('tournament_teams')
-       .select('id')
-       .eq('division', div)
-       .eq('season', season)
-       .limit(1);
-     if (ttError) {
-       console.error('Error comprobando torneo existente:', ttError);
-       return alert('No se pudo verificar si ya existe un torneo.');
-     }
-     if (ttData.length > 0) {
-       return alert(`Ya hay un torneo activo de la división ${div} en ${season}.`);
-     }
-     // ───
-
-    // bloqueamos doble click
+    // ── Bloquear doble click ──
     setLoadingDivs(prev => ({ ...prev, [div]: true }));
+
+    // ── Leer configuración de plantilla antes de crear el torneo ──
+    const starters = parseInt(localStorage.getItem('numStarters'), 10) || 5;
+    const subs     = parseInt(localStorage.getItem('numSubs'), 10)     || 6;
 
     let tournamentId;
     try {
-const { data: tour, error: tourError } = await supabase
-  .from('tournaments')
-  .insert([
-    {
-      name: `${div} - ${season}`, // por ejemplo
-      start_date: startDate,
-      end_date: null
-    }
-  ])
-  .select('id')
-  .single();
-
+      // 1) Crear torneo
+      const { data: tour, error: tourError } = await supabase
+        .from('tournaments')
+        .insert([{ name: `${div} - ${season}`, start_date: startDate, end_date: null }])
+        .select('id')
+        .single();
       if (tourError) throw tourError;
       tournamentId = tour.id;
 
-      // Snapshot de equipos
+      // 2) Snapshot de equipos y tournament_teams
       const teamIds = equipos.map(t => t.id);
       await addTournamentTeams(div, season, teamIds, tournamentId);
 
-      // Generar rondas
+      // 3) Generar rondas
       let rounds = roundRobin(equipos);
       if (isDouble) {
-        // añadimos el mirror invertido
         const reversed = rounds.map(pairs =>
           pairs.map(p => ({ team1_id: p.team2_id, team2_id: p.team1_id }))
         );
         rounds = [...rounds, ...reversed];
       }
 
-      // Guardar schedule
+      // 4) Guardar schedule
       const schedKey = `${div}-${season}`;
       localStorage.setItem(`schedule-${schedKey}`, JSON.stringify(rounds));
       setScheduledMatches(prev => ({ ...prev, [schedKey]: rounds }));
 
-      // Crear jornadas
+      // 5) Crear jornadas en la BD
       for (let i = 0; i < rounds.length; i++) {
         await addJornada(`Jornada ${i + 1}`, div, season);
       }
 
-      // Refrescar vistas
+      // 6) Capturar la configuración de plantillas PARA ESTE torneo
+      setTemplateConfig(prev => ({
+        ...prev,
+        [`${div}-${season}`]: { starters, subs }
+      }));
+
+      // 7) Refrescar vistas
       const allJ = await getJornadas();
       const js = allJ.filter(j => j.division === div && j.season === season);
       setJornadas(js);
@@ -453,7 +458,32 @@ async function handleReturnMatch(e) {
   localStorage.setItem(`schedule-${schedKey}`, JSON.stringify(newRounds));
   setScheduledMatches(prev => ({ ...prev, [schedKey]: newRounds }));
 }
+function handleSelectMatch(entryObj) {
+  // buscamos el partido en la DB para obtener su match.id
+  const found = matches.find(m =>
+    m.jornada_id === entryObj.jornadaId &&
+    m.team1_id   === entryObj.pair.team1_id &&
+    m.team2_id   === entryObj.pair.team2_id
+  );
 
+  if (!found) {
+    return alert('No se encontró el partido en la base de datos.');
+  }
+
+  setSelectedMatchEntry({
+    ...entryObj,
+    id: found.id,
+    team1Name: teamMap[entryObj.pair.team1_id].name,
+    team2Name: teamMap[entryObj.pair.team2_id].name
+  });
+  setShowResultModal(true);
+}
+
+
+function handleCloseResultModal() {
+  setShowResultModal(false);
+  setSelectedMatchEntry(null);    // ← aquí limpiamos también el entry
+}
 
 
   return (
@@ -525,8 +555,22 @@ async function handleReturnMatch(e) {
           getMatchesByJornada={getMatchesByJornada}
           setMatches={setMatches}
           handleReturnMatch={handleReturnMatch}
-        />
+          onSelectMatch={handleSelectMatch}
+          showResultModal={showResultModal}
+          onCloseResultModal={handleCloseResultModal}
+          selectedMatchEntry={selectedMatchEntry}
+          templateConfig={templateConfig[`${activeDiv}-${season}`]}
+  />
       )}
+          { /* ── Modal de Resultado ── */ }
+    {showResultModal && selectedMatchEntry && (
+      <ResultModal
+        entry={selectedMatchEntry}
+        onClose={handleCloseResultModal}
+        templateConfig={templateConfig[`${activeDiv}-${season}`]}
+      />
+    )}
+
     </div>
   );
 }

@@ -70,3 +70,65 @@ export async function getMatchesByJornada(jornadaId) {
   if (error) throw error;
   return data;
 }
+
+/**
+ * Actualiza el resultado de un partido ya creado.
+ *
+ * @param {Object} params
+ * @param {number} params.matchId      — ID del partido a actualizar.
+ * @param {number} params.goals1       — Goles del equipo 1.
+ * @param {number} params.goals2       — Goles del equipo 2.
+ * @param {Array<{playerId: number, goals: number}>} [params.playerGoalsInput]
+ * @param {Array<number>} [params.yc]  — IDs o estructura de tarjetas amarillas.
+ * @param {Array<number>} [params.rc]  — IDs o estructura de tarjetas rojas.
+ * @param {{p1: number, p2: number}} [params.penalties]
+ * @param {string} [params.referee]
+ */
+export async function updateMatchResult({
+  matchId,
+  goals1,
+  goals2,
+  playerGoalsInput = [],
+  yc = [],
+  rc = [],
+  penalties = { p1: 0, p2: 0 },
+  referee = ''
+}) {
+  // 1) Actualizar los campos de result en la tabla matches
+  const { data: updated, error: updateError } = await supabase
+    .from('matches')
+    .update({
+      goals1,
+      goals2,
+      yellow_cards: yc,
+      red_cards: rc,
+      penalties_p1: penalties.p1,
+      penalties_p2: penalties.p2,
+      referee
+    })
+    .eq('id', matchId);
+
+  if (updateError) throw updateError;
+
+  // 2) (Opcional) actualizar goles por jugador: podrías borrar los viejos y volver a insertar:
+  if (playerGoalsInput.length) {
+    // ejemplo: primero borrar viejos
+    await supabase
+      .from('player_goals')
+      .delete()
+      .eq('match_id', matchId);
+
+    // luego insertar los nuevos
+    const toInsert = playerGoalsInput.map(pg => ({
+      match_id:  matchId,
+      player_id: pg.playerId,
+      goals:     pg.goals
+    }));
+    const { error: pgError } = await supabase
+      .from('player_goals')
+      .insert(toInsert);
+    if (pgError) console.error('Error registrando goles por jugador:', pgError);
+  }
+
+  return updated;
+}
