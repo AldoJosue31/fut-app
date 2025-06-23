@@ -1,5 +1,5 @@
-// src/renderer/pages/Torneos.jsx
 import React from 'react';
+import { getGlobalLineupConfig } from '../services/configService';
 
 export default function Torneos({
   divisions,
@@ -16,28 +16,24 @@ export default function Torneos({
   loadingDivs,
   handleStartDivision
 }) {
-  // 1) Estado local con la configuración actual (titulares/subs)
-  const [lineup, setLineup] = React.useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('currentLineup')) || { starters: 5, subs: 6 };
-    } catch {
-      return { starters: 5, subs: 6 };
-    }
-  });
+  const [lineup, setLineup] = React.useState({ starters: 5, subs: 6 });
 
-  // 2) Efecto para escuchar cambios en localStorage desde el sidebar
+  // 1) Al montar, leer la configuración global
   React.useEffect(() => {
-    function onStorage(e) {
-      if (e.key === 'currentLineup') {
-        try {
-          setLineup(JSON.parse(e.newValue));
-        } catch {
-          /* no-op */
-        }
-      }
+    getGlobalLineupConfig()
+      .then(setLineup)
+      .catch(console.error);
+  }, []);
+
+  // 2) Escuchar actualizaciones desde el Sidebar
+  React.useEffect(() => {
+    function handler() {
+      getGlobalLineupConfig()
+        .then(setLineup)
+        .catch(console.error);
     }
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    window.addEventListener('lineupConfigUpdated', handler);
+    return () => window.removeEventListener('lineupConfigUpdated', handler);
   }, []);
 
   return (
@@ -90,56 +86,33 @@ export default function Torneos({
         {divisions.map(div => {
           const started = !!startedDivisions[div];
           const loading = !!loadingDivs[div];
-
-          // equipos activos o ya confirmados
           const list = allTeams.filter(
             t => t.division === div && (t.status === 'Activo' || tournamentTeams.includes(t.id))
           );
 
           return (
-            <div
-              key={div}
-              style={{ background: '#3A3A3A', borderRadius: '0.75rem', padding: '1rem' }}
-            >
+            <div key={div} style={{ background: '#3A3A3A', borderRadius: '0.75rem', padding: '1rem' }}>
               <h3 style={{ color: '#E5E7EB', marginBottom: '0.75rem' }}>{div}</h3>
 
-              {/* Lista de equipos */}
               <ul className="teams-list">
                 {list.length > 0 ? (
                   list.map(t => (
                     <li key={t.id} className="team-box">
-                      {t.name}{' '}
-                      {t.status !== 'Activo' && (
-                        <em style={{ opacity: 0.6 }}>(inactivo)</em>
-                      )}
+                      {t.name} {t.status !== 'Activo' && <em style={{ opacity: 0.6 }}>(inactivo)</em>}
                     </li>
                   ))
                 ) : (
-                  <li style={{ color: '#9CA3AF', fontStyle: 'italic' }}>
-                    No hay equipos
-                  </li>
+                  <li style={{ color: '#9CA3AF', fontStyle: 'italic' }}>No hay equipos</li>
                 )}
               </ul>
 
-              {/* Fecha de inicio */}
-              <label
-                style={{
-                  color: '#E5E7EB',
-                  marginBottom: '0.25rem',
-                  display: 'block'
-                }}
-              >
+              <label style={{ color: '#E5E7EB', marginBottom: '0.25rem', display: 'block' }}>
                 Fecha de inicio
               </label>
               <input
                 type="date"
                 value={startDates[div] || ''}
-                onChange={e =>
-                  setStartDates(prev => ({
-                    ...prev,
-                    [div]: e.target.value
-                  }))
-                }
+                onChange={e => setStartDates(prev => ({ ...prev, [div]: e.target.value }))}
                 disabled={started || loading}
                 style={{
                   background: '#2A2A2A',
@@ -152,15 +125,7 @@ export default function Torneos({
                 }}
               />
 
-              {/* Doble vuelta */}
-              <label
-                style={{
-                  color: '#E5E7EB',
-                  display: 'flex',
-                  alignItems: 'center',
-                  marginBottom: '1rem'
-                }}
-              >
+              <label style={{ color: '#E5E7EB', display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
                 <input
                   type="checkbox"
                   checked={!!doubleRounds[div]}
@@ -171,27 +136,20 @@ export default function Torneos({
                 Doble vuelta
               </label>
 
-              {/* Botón de inicio */}
               {started ? (
-                <button
-                  className="btn success"
-                  disabled
-                  style={{
-                    background: '#6B7280',
-                    color: '#FFF',
-                    width: '100%',
-                    padding: '0.75rem'
-                  }}
-                >
+                <button className="btn success" disabled style={{
+                  background: '#6B7280',
+                  color: '#FFF',
+                  width: '100%',
+                  padding: '0.75rem'
+                }}>
                   COMENZADO
                 </button>
               ) : (
                 <button
                   className="btn success"
                   disabled={loading}
-                  onClick={() =>
-                    handleStartDivision(div, startDates[div], !!doubleRounds[div])
-                  }
+                  onClick={() => handleStartDivision(div, startDates[div], !!doubleRounds[div])}
                   style={{
                     background: loading ? '#4A7D32' : '#16A34A',
                     color: '#FFF',

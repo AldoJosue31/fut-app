@@ -261,7 +261,10 @@ async function handleStartDivision(div, startDate, isDouble = false) {
   // Carga de partidos y jugadores
   useEffect(() => {
     async function loadMatches() {
-      if (!selectedJornada) { setMatches([]); return; }
+      if (!selectedJornada) {
+        setMatches([]);
+        return;
+      }
       const data = await getMatchesByJornada(selectedJornada);
       setMatches(data);
     }
