@@ -1,13 +1,10 @@
 // src/services/configService.js
 import { supabase } from '../supabaseClient';
 
-const CONFIG_TABLE = 'lineup_config'; // <<– aquí el nombre real de la tabla
+const CONFIG_TABLE = 'global_lineup_config';
 const CONFIG_PK    = 1;
 
-/**
- * Lee la configuración global de plantilla (la fila con id=1).
- * Si no existe, devuelve los valores por defecto.
- */
+/** Lee la configuración global de plantilla. */
 export async function getGlobalLineupConfig() {
   const { data, error, status } = await supabase
     .from(CONFIG_TABLE)
@@ -15,18 +12,15 @@ export async function getGlobalLineupConfig() {
     .eq('id', CONFIG_PK)
     .single();
 
-  // Si no está la fila (PGRST116) o no existe la tabla (404), devolvemos defecto:
+  // Si no existe la fila o tabla, devolvemos por defecto:
   if ((error && error.code === 'PGRST116') || status === 404) {
     return { starters: 5, subs: 6 };
   }
   if (error) throw error;
-
   return data || { starters: 5, subs: 6 };
 }
 
-/**
- * Upsert de la configuración global.
- */
+/** Inserta o actualiza la configuración global. */
 export async function upsertGlobalLineupConfig(starters, subs) {
   const { error } = await supabase
     .from(CONFIG_TABLE)

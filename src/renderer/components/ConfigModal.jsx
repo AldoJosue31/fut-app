@@ -1,6 +1,9 @@
 // src/renderer/components/ConfigModal.jsx
 import React, { useState, useEffect } from 'react';
-import { getGlobalLineupConfig, upsertGlobalLineupConfig } from '../services/configService';
+import {
+  getGlobalLineupConfig,
+  upsertGlobalLineupConfig
+} from '../services/configService';
 
 export default function ConfigModal({ onClose }) {
   const [starters, setStarters] = useState(5);

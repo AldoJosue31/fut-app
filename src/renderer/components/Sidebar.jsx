@@ -1,3 +1,4 @@
+// src/renderer/components/Sidebar.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   CDBSidebar,
@@ -30,37 +31,38 @@ const routes = [
 ];
 
 export default function Sidebar() {
+  // ── Estados generales ─────────────────────
   const [divisions, setDivisions]       = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [collapsed, setCollapsed]       = useState(true);
   const [showConfig, setShowConfig]     = useState(false);
 
-  // CRUD Divisiones
+  // ── CRUD Divisiones ─────────────────────
   const [newName, setNewName]   = useState('');
   const [editId, setEditId]     = useState(null);
   const [editName, setEditName] = useState('');
 
-  // Carga divisiones al montar
+  // 1) Carga divisiones al montar
   useEffect(() => {
     (async () => {
       const data = await getDivisions();
-      setDivisions(data);
+      setDivisions(data.map(d => d.name));
       const saved = localStorage.getItem('division');
       const idx   = data.findIndex(d => d.name === saved);
       if (idx >= 0) setCurrentIndex(idx);
     })();
   }, []);
 
-  // Persistir división seleccionada
+  // 2) Persistir división seleccionada
   useEffect(() => {
-    const cur = divisions[currentIndex]?.name;
+    const cur = divisions[currentIndex];
     if (cur) {
       localStorage.setItem('division', cur);
       window.dispatchEvent(new Event('divisionChange'));
     }
   }, [currentIndex, divisions]);
 
-  const refreshDivs = async () => setDivisions(await getDivisions());
+  const refreshDivs = async () => setDivisions(await getDivisions().then(d => d.map(x => x.name)));
   const handleAddDivision = async () => {
     if (!newName.trim()) return;
     await addDivision({ name: newName });
@@ -71,7 +73,8 @@ export default function Sidebar() {
   const handleUpdateDivision = async () => {
     if (!editName.trim()) return;
     await updateDivision(editId, { name: editName });
-    setEditId(null); setEditName('');
+    setEditId(null);
+    setEditName('');
     refreshDivs();
   };
   const handleDeleteDivision = async id => {
@@ -79,6 +82,7 @@ export default function Sidebar() {
     refreshDivs();
   };
 
+  // ── Rutas del menú ──────────────────────
   const menuItems = useMemo(() =>
     routes.map(({ to, icon, label, end }) => (
       <NavLink
@@ -96,7 +100,7 @@ export default function Sidebar() {
         <CDBSidebarMenuItem icon={icon} iconType="solid">{label}</CDBSidebarMenuItem>
       </NavLink>
     ))
-  , []);
+  , [routes]);
 
   return (
     <>
@@ -104,10 +108,7 @@ export default function Sidebar() {
         <CDBSidebar collapsed={collapsed} textColor="#b0b0b0" backgroundColor="#444343">
           <CDBSidebarHeader
             prefix={
-              <FaBars
-                style={{ cursor: 'pointer' }}
-                onClick={() => setCollapsed(!collapsed)}
-              />
+              <FaBars style={{ cursor: 'pointer' }} onClick={() => setCollapsed(!collapsed)} />
             }
           >
             {!collapsed && (
@@ -129,19 +130,25 @@ export default function Sidebar() {
               <button
                 onClick={() => setCurrentIndex(i => (i - 1 + divisions.length) % divisions.length)}
                 className="btn text"
-              ><FaArrowLeft size={20}/></button>
+              >
+                <FaArrowLeft size={20}/>
+              </button>
               <span style={{ color: '#fff', fontWeight: '500', margin: '0 10px' }}>
-                {divisions[currentIndex]?.name || 'Cargando...'}
+                {divisions[currentIndex] || 'Cargando...'}
               </span>
               <button
                 onClick={() => setCurrentIndex(i => (i + 1) % divisions.length)}
                 className="btn text"
-              ><FaArrowRight size={20}/></button>
+              >
+                <FaArrowRight size={20}/>
+              </button>
               <button
                 onClick={() => setShowConfig(true)}
                 style={{ background: 'none', border: 'none', color: '#b0b0b0', marginLeft: '10px', cursor: 'pointer' }}
                 title="Configuración"
-              ><FaCog size={20}/></button>
+              >
+                <FaCog size={20}/>
+              </button>
             </div>
           </CDBSidebarFooter>
         </CDBSidebar>
