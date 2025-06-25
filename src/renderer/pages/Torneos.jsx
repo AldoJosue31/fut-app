@@ -1,3 +1,4 @@
+// src/renderer/pages/Torneos.jsx
 import React from 'react';
 import { getGlobalLineupConfig } from '../services/configService';
 
@@ -27,11 +28,11 @@ export default function Torneos({
 
   // 2) Escuchar actualizaciones desde el Sidebar
   React.useEffect(() => {
-    function handler() {
+    const handler = () => {
       getGlobalLineupConfig()
         .then(setLineup)
         .catch(console.error);
-    }
+    };
     window.addEventListener('lineupConfigUpdated', handler);
     return () => window.removeEventListener('lineupConfigUpdated', handler);
   }, []);
@@ -91,7 +92,10 @@ export default function Torneos({
           );
 
           return (
-            <div key={div} style={{ background: '#3A3A3A', borderRadius: '0.75rem', padding: '1rem' }}>
+            <div
+              key={div}
+              style={{ background: '#3A3A3A', borderRadius: '0.75rem', padding: '1rem' }}
+            >
               <h3 style={{ color: '#E5E7EB', marginBottom: '0.75rem' }}>{div}</h3>
 
               <ul className="teams-list">
@@ -137,12 +141,16 @@ export default function Torneos({
               </label>
 
               {started ? (
-                <button className="btn success" disabled style={{
-                  background: '#6B7280',
-                  color: '#FFF',
-                  width: '100%',
-                  padding: '0.75rem'
-                }}>
+                <button
+                  className="btn success"
+                  disabled
+                  style={{
+                    background: '#6B7280',
+                    color: '#FFF',
+                    width: '100%',
+                    padding: '0.75rem'
+                  }}
+                >
                   COMENZADO
                 </button>
               ) : (

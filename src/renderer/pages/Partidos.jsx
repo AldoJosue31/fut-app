@@ -7,6 +7,7 @@ import { getTeams } from '../services/teamsService.js';
 import { getPlayersByTeam } from '../services/playersService.js';
 import { createMatch, getMatchesByJornada } from '../services/matchesService.js';
 import { getJornadas, addJornada, isTorneoComenzado } from '../services/jornadasService.js';
+import { getGlobalLineupConfig } from '../services/configService.js';
 import { getDivisions } from '../services/divisionsService.js';
 import { getTournamentTeams, addTournamentTeams } from '../services/tournamentService';
 import { supabase } from '../supabaseClient.js';
@@ -195,6 +196,22 @@ async function handleStartDivision(div, startDate, isDouble = false) {
 
     // ── Bloquear doble click ──
     setLoadingDivs(prev => ({ ...prev, [div]: true }));
+
+   // ── Leer configuración de plantilla DESDE LA DB ──
+   let cfg;
+   try {
+     cfg = await getGlobalLineupConfig();
+   } catch (err) {
+     console.error('No se pudo leer configuración de plantilla, usando 5/6 por defecto', err);
+     cfg = { starters: 5, subs: 6 };
+   }
+
+   // ── Guardar esa config en el estado con clave división-temporada ──
+   const key = `${div}-${season}`;
+   setTemplateConfig(prev => ({
+     ...prev,
+     [key]: { starters: cfg.starters, subs: cfg.subs }
+   }));
 
     // ── Leer configuración de plantilla antes de crear el torneo ──
     const starters = parseInt(localStorage.getItem('numStarters'), 10) || 5;
@@ -570,7 +587,8 @@ function handleCloseResultModal() {
       <ResultModal
         entry={selectedMatchEntry}
         onClose={handleCloseResultModal}
-        templateConfig={templateConfig[`${activeDiv}-${season}`]}
+        // aquí recuperamos la config para la división y la temporada actuales
+        config={templateConfig[`${activeDiv}-${season}`]}
       />
     )}
 
