@@ -1,0 +1,156 @@
+/* src/styles/Sidebar.css */
+
+/* Sidebar Base */
+.sidebar {
+  height: 100vh;
+  width: 250px;
+  background-color: #1c1c1e;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  transition: width 0.3s ease-in-out;
+}
+.sidebar.closed {
+  width: 70px;
+}
+
+/* Content */
+.sidebar-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+/* Scrollbar */
+.sidebar-content::-webkit-scrollbar { width: 8px; }
+.sidebar-content::-webkit-scrollbar-thumb {
+  background-color: #333; border-radius: 4px;
+}
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background-color: #555;
+}
+
+/* Header */
+.sidebar-header h4 { transition: opacity 0.3s; }
+.sidebar.closed .sidebar-header h4 { display: none; }
+
+/* Nav Links */
+.nav-link {
+  display: flex; align-items: center;
+  padding: 10px 15px; font-size: 16px;
+  color: #b0b0b0; transition: background-color 0.3s;
+}
+.sidebar.closed .nav-link { justify-content: center; }
+.nav-link.active {
+  background-color: #007bff;
+  color: #fff !important;
+}
+.nav-link span { margin-left: 0.5rem; }
+.sidebar.closed .nav-link span { display: none; }
+
+/* Toggle Button */
+.toggle-sidebar-btn {
+  position: absolute; top: 10px; right: -15px;
+  width: 30px; height: 30px;
+  background-color: #007bff; color: white;
+  border: none; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background-color 0.3s;
+}
+.toggle-sidebar-btn.closed { right: -10px; }
+.toggle-sidebar-btn:hover { background-color: #0056b3; }
+
+/* Selector y Config */
+.form-group label { font-size: 14px; }
+.btn-link {
+  background: none; border: none; padding: 0;
+  color: inherit; text-align: left;
+}
+
+/* Cuando esté colapsado: nav-links centrados y sin demasiado padding */
+.sidebar.closed .nav-link {
+  justify-content: center;     /* centra el contenido */
+  padding-left: 0.5rem;        /* reduce padding lateral */
+  padding-right: 0.5rem;
+}
+
+/* Asegura que el <i> ocupe todo el ancho disponible */
+.sidebar.closed .nav-link i {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+/* Iconos de selector + config centrados */
+.sidebar.closed .mt-auto i,
+.sidebar.closed .mt-auto .btn-link {
+  display: block;
+  margin: 0 auto;
+  padding: 0.5rem 0;        /* algo de “clickable area” */
+}
+
+/* Si quieres un poco de hover sobre el ícono colapsado */
+.sidebar.closed .nav-link:hover,
+.sidebar.closed .mt-auto i:hover {
+  background-color: #333;
+  border-radius: 4px;
+}
+
+/* ── Ajustes para sidebar colapsado ── */
+.sidebar.closed {
+  width: 70px;
+}
+
+/* Centrar todo el menú y dar espacio vertical uniforme */
+.sidebar.closed .sidebar-content {
+  align-items: center;    /* centra en el eje X */
+}
+
+/* En colapsado, los enlaces son solo iconos:
+   hacemos que ocupen los 70px y tengan padding vertical */
+.sidebar.closed .nav-link {
+  display: flex;
+  justify-content: center !important; /* fuerza centrado */
+  align-items: center;
+  width: 70px;
+  padding: 0.75rem 0;                  /* suficiente “clickable area” */
+}
+
+/* Aseguramos el tamaño y el color del icono */
+.sidebar.closed .nav-link i {
+  display: block;
+  width: auto;
+  font-size: 1.25rem;   /* ajusta al tamaño que necesites */
+  color: inherit;       /* hereda el color según activo/inactivo */
+}
+
+/* Cuando está activo (background azul), el icono se vea en blanco */
+.sidebar.closed .nav-link.active i {
+  color: #fff !important;
+}
+
+/* Hover para dar feedback en colapsado */
+.sidebar.closed .nav-link:hover {
+  background-color: #333;
+  border-radius: 4px;
+}
+
+/* Selector de ligas colapsado: centra solo el icono */
+.sidebar.closed .mt-auto i.fas,
+.sidebar.closed .mt-auto .btn-link i.fas {
+  display: block;
+  margin: 0 auto;
+  font-size: 1.25rem;
+  color: #b0b0b0;
+  padding: 0.75rem 0;
+}
+
+/* Al hacer hover sobre selector/config en colapsado */
+.sidebar.closed .mt-auto i.fas:hover,
+.sidebar.closed .mt-auto .btn-link:hover {
+  background-color: #333;
+  border-radius: 4px;
+  color: #fff;
+}
