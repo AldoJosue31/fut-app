@@ -1,160 +1,197 @@
 // src/renderer/components/Sidebar.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import "bootstrap/dist/css/bootstrap.min.css";
+import * as bootstrap from "bootstrap";
 import {
-  CDBSidebar,
-  CDBSidebarContent,
-  CDBSidebarFooter,
-  CDBSidebarHeader,
-  CDBSidebarMenu,
-  CDBSidebarMenuItem,
-} from 'cdbreact';
-import { NavLink } from 'react-router-dom';
-import { FaArrowLeft, FaArrowRight, FaCog, FaBars } from 'react-icons/fa';
+  FaHome,
+  FaUsers,
+  FaListOl,
+  FaEdit,
+  FaFutbol,
+  FaCalendarAlt,
+  FaListUl,
+  FaCog,
+  FaChevronLeft,
+  FaChevronRight,
+} from "react-icons/fa";
 
-import {
-  getDivisions,
-  addDivision,
-  updateDivision,
-  deleteDivision,
-} from '../services/divisionsService';
-
-import ConfigModal from './ConfigModal';
-import '../styles/styles.css';
+import { getDivisions } from "../services/divisionsService";
+import ConfigModal from "./ConfigModal";
+import "../styles/sidebar.css";
 
 const routes = [
-  { to: '/', icon: 'fas fa-home', label: 'Inicio', end: true },
-  { to: '/equipos', icon: 'fas fa-users', label: 'Equipos' },
-  { to: '/clasificacion', icon: 'fas fa-list-ol', label: 'Clasificación' },
-  { to: '/editar', icon: 'fas fa-edit', label: 'Editar' },
-  { to: '/partidos', icon: 'fas fa-futbol', label: 'Partidos' },
-  { to: '/calendario', icon: 'fas fa-calendar-alt', label: 'Calendario' },
+  { id: 1, to: "/", Icon: FaHome,        label: "Inicio",       end: true },
+  { id: 2, to: "/equipos", Icon: FaUsers,       label: "Equipos" },
+  { id: 3, to: "/clasificacion", Icon: FaListOl,    label: "Clasificación" },
+  { id: 4, to: "/editar", Icon: FaEdit,        label: "Editar" },
+  { id: 5, to: "/partidos", Icon: FaFutbol,      label: "Partidos" },
+  { id: 6, to: "/calendario", Icon: FaCalendarAlt,label: "Calendario" },
 ];
 
-export default function Sidebar() {
-  // ── Estados generales ─────────────────────
-  const [divisions, setDivisions]       = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [collapsed, setCollapsed]       = useState(true);
-  const [showConfig, setShowConfig]     = useState(false);
+export default function Sidebar({ isOpen, onToggle }) {
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  // ── CRUD Divisiones ─────────────────────
-  const [newName, setNewName]   = useState('');
-  const [editId, setEditId]     = useState(null);
-  const [editName, setEditName] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [divisions, setDivisions]     = useState([]);
+  const [currentDiv, setCurrentDiv]   = useState(0);
+  const [showConfig, setShowConfig]   = useState(false);
 
-  // 1) Carga divisiones al montar
+  const tooltipsRef = useRef([]);
+
+  // (Re)initialize tooltips when open/closed
+  useEffect(() => {
+    tooltipsRef.current.forEach(t => {
+      try { t.hide(); t.dispose(); }
+      catch {}
+    });
+    tooltipsRef.current = [];
+
+    if (!isOpen) {
+      const els = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+      tooltipsRef.current = Array.from(els).map(el =>
+        new bootstrap.Tooltip(el, { animation: false })
+      );
+    }
+
+    return () => {
+      tooltipsRef.current.forEach(t => {
+        try { t.hide(); t.dispose(); }
+        catch {}
+      });
+      tooltipsRef.current = [];
+    };
+  }, [isOpen]);
+
+  // Load divisions
   useEffect(() => {
     (async () => {
       const data = await getDivisions();
       setDivisions(data.map(d => d.name));
-      const saved = localStorage.getItem('division');
+      const saved = localStorage.getItem("division");
       const idx   = data.findIndex(d => d.name === saved);
-      if (idx >= 0) setCurrentIndex(idx);
+      if (idx >= 0) setCurrentDiv(idx);
     })();
   }, []);
 
-  // 2) Persistir división seleccionada
+  // Persist division
   useEffect(() => {
-    const cur = divisions[currentIndex];
+    const cur = divisions[currentDiv];
     if (cur) {
-      localStorage.setItem('division', cur);
-      window.dispatchEvent(new Event('divisionChange'));
+      localStorage.setItem("division", cur);
+      window.dispatchEvent(new Event("divisionChange"));
     }
-  }, [currentIndex, divisions]);
+  }, [currentDiv, divisions]);
 
-  const refreshDivs = async () => setDivisions(await getDivisions().then(d => d.map(x => x.name)));
-  const handleAddDivision = async () => {
-    if (!newName.trim()) return;
-    await addDivision({ name: newName });
-    setNewName('');
-    refreshDivs();
-  };
-  const startEditDivision = d => { setEditId(d.id); setEditName(d.name); };
-  const handleUpdateDivision = async () => {
-    if (!editName.trim()) return;
-    await updateDivision(editId, { name: editName });
-    setEditId(null);
-    setEditName('');
-    refreshDivs();
-  };
-  const handleDeleteDivision = async id => {
-    await deleteDivision(id);
-    refreshDivs();
-  };
+  // Active route
+  useEffect(() => {
+    const idx = routes.findIndex(r => r.to === location.pathname);
+    if (idx !== -1) setActiveIndex(idx);
+  }, [location.pathname]);
 
-  // ── Rutas del menú ──────────────────────
-  const menuItems = useMemo(() =>
-    routes.map(({ to, icon, label, end }) => (
-      <NavLink
-        key={to}
-        to={to}
-        end={end}
-        className="text-decoration-none"
-        style={({ isActive }) => ({
-          display: 'flex',
-          alignItems: 'center',
-          color: isActive ? '#fff' : '#b0b0b0',
-          textDecoration: 'none'
-        })}
-      >
-        <CDBSidebarMenuItem icon={icon} iconType="solid">{label}</CDBSidebarMenuItem>
-      </NavLink>
-    ))
-  , [routes]);
+  // Scroll nav
+  let scrollTimeout = null;
+  const handleScroll = useCallback((e) => {
+    if (scrollTimeout) return;
+    const delta = e.deltaY > 0 ? 1 : -1;
+    let newIndex = activeIndex + delta;
+    newIndex = Math.max(0, Math.min(routes.length - 1, newIndex));
+    if (newIndex !== activeIndex) {
+      setActiveIndex(newIndex);
+      navigate(routes[newIndex].to);
+    }
+    scrollTimeout = setTimeout(() => { scrollTimeout = null; }, 200);
+  }, [activeIndex, navigate]);
 
   return (
-    <>
-      <div style={{ display: 'flex', height: '100vh', overflow: 'auto' }}>
-        <CDBSidebar collapsed={collapsed} textColor="#b0b0b0" backgroundColor="#444343">
-          <CDBSidebarHeader
-            prefix={
-              <FaBars style={{ cursor: 'pointer' }} onClick={() => setCollapsed(!collapsed)} />
-            }
-          >
-            {!collapsed && (
-              <NavLink to="/" className="text-decoration-none" style={{ color: '#fff', fontWeight: 'bold' }}>
-                Mi App
-              </NavLink>
-            )}
-          </CDBSidebarHeader>
+    <div className={`sidebar ${isOpen ? "open" : "closed"}`} onWheel={handleScroll}>
+      <div className="sidebar-content d-flex flex-column">
+        {/* Header */}
+        <div className="sidebar-header text-center p-3 border-bottom">
+          <FaFutbol size={32} className="text-primary" />
+          {isOpen && <h4 className="text-white mt-2">Liga Amateur</h4>}
+        </div>
 
-          <CDBSidebarContent className="sidebar-content">
-            <CDBSidebarMenu>{menuItems}</CDBSidebarMenu>
-          </CDBSidebarContent>
+        {/* Menu */}
+        <nav className="nav flex-column mt-4">
+          {routes.map(({ id, to, Icon, label }, idx) => (
+            <NavLink
+              key={id}
+              to={to}
+              end={to === "/"}
+              className={`nav-link text-light py-3 ${idx === activeIndex ? "active" : ""}`}
+              onClick={() => setActiveIndex(idx)}
+              {...(!isOpen && {
+                "data-bs-toggle": "tooltip",
+                "data-bs-placement": "right",
+                title: label
+              })}
+            >
+              <Icon size={20} />
+              {isOpen && <span className="ms-2">{label}</span>}
+            </NavLink>
+          ))}
+        </nav>
 
-          <CDBSidebarFooter style={{ textAlign: 'center', padding: '10px' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center',
-              background: '#5a5a5a', borderRadius: '5px', padding: '5px 10px'
-            }}>
-              <button
-                onClick={() => setCurrentIndex(i => (i - 1 + divisions.length) % divisions.length)}
-                className="btn text"
+        {/* When open: show selector + config button */}
+        {isOpen && (
+          <div className="mt-auto p-3">
+            <div className="form-group mb-3">
+              <label htmlFor="ligaSelector" className="text-light mb-1">Liga:</label>
+              <select
+                id="ligaSelector"
+                className="form-select bg-dark text-light border-secondary"
+                value={currentDiv}
+                onChange={e => setCurrentDiv(Number(e.target.value))}
               >
-                <FaArrowLeft size={20}/>
-              </button>
-              <span style={{ color: '#fff', fontWeight: '500', margin: '0 10px' }}>
-                {divisions[currentIndex] || 'Cargando...'}
-              </span>
-              <button
-                onClick={() => setCurrentIndex(i => (i + 1) % divisions.length)}
-                className="btn text"
-              >
-                <FaArrowRight size={20}/>
-              </button>
-              <button
-                onClick={() => setShowConfig(true)}
-                style={{ background: 'none', border: 'none', color: '#b0b0b0', marginLeft: '10px', cursor: 'pointer' }}
-                title="Configuración"
-              >
-                <FaCog size={20}/>
-              </button>
+                {divisions.map((name,i) => (
+                  <option key={i} value={i}>{name}</option>
+                ))}
+              </select>
             </div>
-          </CDBSidebarFooter>
-        </CDBSidebar>
+            <button
+              onClick={() => setShowConfig(true)}
+              className="btn btn-outline-light w-100"
+            >
+              <FaCog className="me-2" />
+              Configuración
+            </button>
+          </div>
+        )}
+
+        {/* When closed: show league & config icons at bottom */}
+        {!isOpen && (
+          <div className="sidebar-footer mt-auto">
+            <FaListUl
+              size={24}
+              className="footer-icon text-light"
+              data-bs-toggle="tooltip"
+              data-bs-placement="right"
+              title="Ligas"
+              onClick={() => {}}
+            />
+            <FaCog
+              size={24}
+              className="footer-icon text-light"
+              data-bs-toggle="tooltip"
+              data-bs-placement="right"
+              title="Configuración"
+              onClick={() => setShowConfig(true)}
+            />
+          </div>
+        )}
       </div>
 
+      {/* Toggle */}
+      <button
+        className={`toggle-sidebar-btn ${isOpen ? "open" : "closed"}`}
+        onClick={onToggle}
+      >
+        {isOpen ? <FaChevronLeft /> : <FaChevronRight />}
+      </button>
+
       {showConfig && <ConfigModal onClose={() => setShowConfig(false)} />}
-    </>
+    </div>
   );
 }

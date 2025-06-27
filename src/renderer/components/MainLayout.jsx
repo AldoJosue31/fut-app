@@ -5,33 +5,31 @@ import CurrentRouteLogger from "./CurrentRouteLogger";
 import { Outlet } from 'react-router-dom';
 
 const MainLayout = () => {
-  // Estado levantado aquí:
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(true);
 
-  // estilo dinámico para el contenido
   const contentStyle = {
-    marginLeft: isSidebarOpen ? '250px' : '70px',
+    marginLeft: '70px',                // Siempre 70px, contenido fijo
     transition: 'margin-left 0.3s ease-in-out',
     padding: '20px',
     backgroundColor: '#2D2D2D',
     color: 'white',
-    height: '100vh',
+    minHeight: '100vh',
     overflow: 'auto',
   };
 
   return (
-    <div>
+    <>
       <CurrentRouteLogger />
-      <div>
-        <Sidebar
-          isOpen={isSidebarOpen}
-          onToggle={() => setIsSidebarOpen(o => !o)}
-        />
-        <div style={contentStyle}>
-          <Outlet />
-        </div>
-      </div>
-    </div>
+
+      <Sidebar
+        isOpen={isOpen}
+        onToggle={() => setIsOpen(o => !o)}
+      />
+
+      <main style={contentStyle}>
+        <Outlet />
+      </main>
+    </>
   );
 };
 
