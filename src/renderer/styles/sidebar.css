@@ -1,176 +1,169 @@
-/* src/styles/Sidebar.css */
-
-/* Sidebar Base */
+/* Contenedor */
 .sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 1000;       /* Por encima del <main> */
-  width: 250px;
-  height: 100vh;
-  background-color: #1c1c1e;
-  transition: width 0.3s ease-in-out;
+  position: fixed; top: 0; left: 0;
+  width: 250px; height: 100vh;
+  background: #1c1c1e;
+  transition: width 0.3s ease;
+  display: flex; flex-direction: column;
+  z-index: 1000;
 }
+.sidebar.closed { width: 70px; }
 
-.sidebar.closed {
-  width: 70px;
+/* HEADER */
+.sidebar-header {
+  display: flex; align-items: center;
+  padding: 1rem;
 }
+.logo-icon { font-size: 1.75rem; color: #007bff; }
+.logo-text { margin-left: 0.5rem; color: #fff; font-size: 1.25rem; }
 
-
-/* Sidebar Content */
-.sidebar-content {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
+/* NAV */
+.sidebar-nav {
+  flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column;
 }
-
-/* Scrollbar */
-.sidebar-content::-webkit-scrollbar {
-  width: 8px;
-}
-.sidebar-content::-webkit-scrollbar-thumb {
-  background-color: #333;
-  border-radius: 4px;
-}
-.sidebar-content::-webkit-scrollbar-thumb:hover {
-  background-color: #555;
-}
-
-/* Header */
-.sidebar-header h4 {
-  transition: opacity 0.3s;
-}
-.sidebar.closed .sidebar-header h4 {
-  display: none;
-}
-
-/* Nav Links */
 .nav-link {
-  display: flex;
-  align-items: center;
-  padding: 10px 15px;
-  font-size: 16px;
-  color: #b0b0b0;
-  transition: background-color 0.3s;
+  display: flex; align-items: center;
+  transition: background 0.2s;
 }
-
+.sidebar.open .nav-link {
+  padding: 1rem 1.25rem;
+}
+.sidebar.closed .nav-link {
+  justify-content: center;
+  padding: 1rem 0;
+}
+.nav-link:hover,
 .nav-link.active {
-  background-color: #007bff;
-  color: #fff !important;
+  background: rgba(0,123,255,0.2);
+  color: #fff;
 }
-
-/* Texto de los links */
-.nav-link span {
+.nav-icon {
+  flex-shrink: 0;
+}
+.sidebar.open .nav-icon {
+  font-size: 1.5rem;
+}
+.sidebar.closed .nav-icon {
+  font-size: 1.75rem;
+}
+.nav-label {
   margin-left: 0.5rem;
 }
 
-/* Center nav-links when collapsed */
-.sidebar.closed .nav-link {
-  justify-content: center;
-  width: 70px;
-  padding: 0.75rem 0;
+/* FOOTER COMÚN */
+.sidebar-footer {
+  padding: 0.5rem 1rem;
+}
+.divider {
+  height: 1px; background: #444;
+  margin-bottom: 0.5rem;
 }
 
-/* Hide labels when collapsed */
-.sidebar.closed .nav-link span {
-  display: none;
+/* OPEN FOOTER */
+.sidebar-footer.open .selector label {
+  color: #b0b0b0; font-size: 0.875rem;
+}
+.sidebar-footer.open .selector select {
+  width: 100%; margin-top: 0.25rem;
+  background: #2d2d2d; color: #fff;
+  border: 1px solid #555; border-radius: 0.25rem;
+  padding: 0.25rem;
+}
+.btn-config {
+  margin-top: 0.5rem; width: 100%;
+  background: transparent; border: 1px solid #b0b0b0;
+  color: #b0b0b0; padding: 0.5rem;
+  border-radius: 0.25rem;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-config:hover {
+  background: #007bff; border-color: #007bff; color: #fff;
+}
+.config-icon { margin-right: 0.5rem; }
+
+/* CLOSED FOOTER */
+.sidebar-footer.closed {
+  display: flex; flex-direction: column; align-items: center;
+}
+.sidebar-footer.closed .divider {
+  width: 80%; margin: 0 auto 0.5rem;
+}
+.icon-selector {
+  display: flex; justify-content: space-around;
+  align-items: center; width: 100%;
+}
+.arrow-btn {
+  background: #2d2d2d; border: none;
+  border-radius: 0.25rem;
+  width: 2.5rem; height: 2.5rem;
+  display: flex; align-items: center; justify-content: center;
+  color: #b0b0b0; font-size: 1.25rem;
+  cursor: pointer; transition: color 0.2s, background 0.2s;
+}
+.arrow-btn:hover { color: #fff; background: #3a3a3a; }
+.div-initial {
+  width: 2.5rem; height: 2.5rem;
+  display: flex; align-items: center; justify-content: center;
+  background: #2d2d2d; border-radius: 0.25rem;
+  font-size: 1rem; color: #b0b0b0;
+}
+.footer-config-btn {
+  margin-top: 0.5rem;
+  background: #2d2d2d; border: none;
+  border-radius: 0.25rem;
+  width: 2.5rem; height: 2.5rem;
+  display: flex; align-items: center; justify-content: center;
+  color: #b0b0b0; font-size: 1.25rem;
+  cursor: pointer; transition: color 0.2s, background 0.2s;
+}
+.footer-config-btn:hover { color: #fff; background: #3a3a3a; }
+
+/* TOGGLE */
+.toggle-btn {
+  position: absolute; top: 1rem; right: -15px;
+  width: 30px; height: 30px;
+  background: #007bff; border: none; border-radius: 50%;
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background 0.2s;
+}
+.toggle-btn:hover { background: #0056b3; }
+
+/* FORZAR iconos y botones en blanco */
+
+/* Navegación */
+.sidebar .nav-icon,
+.sidebar .nav-link,
+.sidebar .nav-link .nav-label {
+  color: #fff !important;
 }
 
-/* Style the SVG icons inside links */
-.nav-link svg {
-  flex-shrink: 0;
+/* Botones de flecha en el footer cerrado */
+.sidebar-footer.closed .arrow-btn,
+.sidebar-footer.closed .footer-config-btn {
+  color: #fff !important;
 }
 
-/* Increase icon size if desired when collapsed */
-.sidebar.closed .nav-link svg {
-  font-size: 1.5rem;
+/* Indicador de división */
+.sidebar-footer.closed .div-initial {
+  color: #fff !important;
 }
 
-/* Hover feedback */
-.nav-link:hover {
-  background-color: rgba(255,255,255,0.05);
-  border-radius: 4px;
-}
-.sidebar.closed .nav-link:hover {
-  background-color: #333;
+/* Botón de configuración en el footer abierto */
+.sidebar-footer.open .btn-config,
+.sidebar-footer.open .config-icon {
+  color: #fff !important;
+  border-color: #fff !important;
 }
 
-/* Toggle Button */
-.toggle-sidebar-btn {
-  position: absolute;
-  top: 10px;
-  right: -15px;
-  width: 30px;
-  height: 30px;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background-color 0.3s;
+/* Hover de los botones, mantenerlos blancos al pasar */
+.sidebar-footer.closed .arrow-btn:hover,
+.sidebar-footer.closed .footer-config-btn:hover,
+.sidebar-footer.open .btn-config:hover {
+  color: #fff !important;
 }
 
-.toggle-sidebar-btn.closed {
-  right: -10px;
+/* Asegura que el toggle siga en blanco */
+.toggle-btn {
+  color: #fff !important;
 }
-
-.toggle-sidebar-btn:hover {
-  background-color: #0056b3;
-}
-
-/* Selector de ligas y Configuración */
-.mt-auto .form-group label {
-  font-size: 14px;
-}
-
-/* When collapsed, center the list and cog icons */
-.sidebar.closed .mt-auto {
-  text-align: center;
-}
-
-.sidebar.closed .mt-auto svg {
-  display: block;
-  margin: 0 auto;
-  font-size: 1.5rem;
-  padding: 0.75rem 0;
-}
-
-/* Button link reset */
-.btn-link {
-  background: none;
-  border: none;
-  padding: 0;
-  color: inherit;
-  text-align: left;
-}
-
-.sidebar.closed .sidebar-content > .mt-auto {
-  /* Garantiza que el bloque inferior tenga espacio suficiente */
-  min-height: 100px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  padding-bottom: 1rem;
-}
-
-/* Asegura que los SVG de liga y config sean visibles y del color correcto */
-.sidebar.closed .sidebar-content > .mt-auto svg {
-  display: block !important;
-  color: #b0b0b0 !important;
-  font-size: 1.5rem;
-  margin: 0.25rem 0;
-  cursor: pointer;
-}
-
-/* Hover sobre esos iconos */
-.sidebar.closed .sidebar-content > .mt-auto svg:hover {
-  color: #ffffff !important;
-}
-
-
