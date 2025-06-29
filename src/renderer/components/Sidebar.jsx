@@ -19,6 +19,7 @@ import {
 import { getDivisions } from '../services/divisionsService';
 import ConfigModal from './ConfigModal';
 import '../styles/sidebar.css';
+import '../styles/styles.css';
 
 const ROUTES = [
   { id: 1, to: '/',          Icon: FaHome,       label: 'Inicio',      end: true },
