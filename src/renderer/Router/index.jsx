@@ -1,19 +1,32 @@
 import React, { lazy, Suspense } from 'react';
-import { createBrowserRouter, createRoutesFromElements, Route, Navigate } from 'react-router-dom';
+import {
+  createBrowserRouter,
+  createRoutesFromElements,
+  Route,
+  Outlet,
+  Navigate
+} from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
+
 import MainLayout from '../components/MainLayout';
 import ErrorPage from '../pages/ErrorPage';
 
-// Lazy-loaded pages for code splitting
-const Home = lazy(() => import('../pages/Home'));
-const Calendario = lazy(() => import('../pages/Calendario'));
-const Equipos = lazy(() => import('../pages/Equipos'));
-const Clasificacion = lazy(() => import('../pages/Clasificacion'));
-const Partidos = lazy(() => import('../pages/Partidos'));
-const Editar = lazy(() => import('../pages/Editar'));
+// Context y ruta protegida
+import { AuthProvider } from '../../contexts/AuthContext';
+import ProtectedRoute from '../ProtectedRoute';
 
-// Page transition wrapper using framer-motion
+// Páginas lazy-loaded
+const Home        = lazy(() => import('../pages/Home'));
+const Calendario  = lazy(() => import('../pages/Calendario'));
+const Equipos     = lazy(() => import('../pages/Equipos'));
+const Clasificacion = lazy(() => import('../pages/Clasificacion'));
+const Partidos    = lazy(() => import('../pages/Partidos'));
+const Editar      = lazy(() => import('../pages/Editar'));
+const Login       = lazy(() => import('../pages/Login'));
+const Signup      = lazy(() => import('../pages/Signup'));
+
+// Animaciones y Suspense
 const PageWrapper = ({ children }) => {
   const location = useLocation();
   return (
@@ -31,25 +44,38 @@ const PageWrapper = ({ children }) => {
   );
 };
 
-// Suspense + transition wrapper
 const LazyPage = (Element) => (
   <Suspense fallback={<div>Cargando...</div>}>
     <PageWrapper>{Element}</PageWrapper>
   </Suspense>
 );
 
-// Router configuration with smooth transitions and prefetching hints
 export const router = createBrowserRouter(
   createRoutesFromElements(
-    <Route path="/" element={<MainLayout />} errorElement={<ErrorPage />}>
-      <Route index element={LazyPage(<Home />)} />
-      <Route path="index.html" element={<Navigate to="/" replace />} />
-      <Route path="calendario" element={LazyPage(<Calendario />)} />
-      <Route path="equipos" element={LazyPage(<Equipos />)} />
-      <Route path="clasificacion" element={LazyPage(<Clasificacion />)} />
-      <Route path="partidos" element={LazyPage(<Partidos />)} />
-      <Route path="editar" element={LazyPage(<Editar />)} />
-      <Route path="*" element={<ErrorPage />} />
+    // Agrupamos todo bajo AuthProvider
+   <Route>
+
+      {/* Rutas públicas */}
+      <Route path="/login"  element={LazyPage(<Login />)} />
+      <Route path="/signup" element={LazyPage(<Signup />)} />
+
+      {/* Rutas protegidas */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+        errorElement={<ErrorPage />}
+      >
+        <Route index                element={LazyPage(<Home />)} />
+        <Route path="calendario"    element={LazyPage(<Calendario />)} />
+        <Route path="equipos"       element={LazyPage(<Equipos />)} />
+        <Route path="clasificacion" element={LazyPage(<Clasificacion />)} />
+        <Route path="partidos"      element={LazyPage(<Partidos />)} />
+        <Route path="editar"        element={LazyPage(<Editar />)} />
+        <Route path="*"             element={<ErrorPage />} />
+      </Route>
     </Route>
   )
 );

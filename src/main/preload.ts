@@ -24,6 +24,19 @@ const electronHandler = {
   },
 };
 
+// Expose general electron IPC handler
 contextBridge.exposeInMainWorld('electron', electronHandler);
+
+// Expose authentication API
+contextBridge.exposeInMainWorld('electronAuth', {
+  signUp: (email: string, password: string) =>
+    ipcRenderer.invoke('auth:signUp', { email, password }),
+  signIn: (email: string, password: string) =>
+    ipcRenderer.invoke('auth:signIn', { email, password }),
+  signOut: () =>
+    ipcRenderer.invoke('auth:signOut'),
+  getSession: () =>
+    ipcRenderer.invoke('auth:getSession'),
+});
 
 export type ElectronHandler = typeof electronHandler;

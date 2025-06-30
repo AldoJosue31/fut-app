@@ -1,30 +1,69 @@
-/* Contenedor */
+/* ===== CONTENEDOR ===== */
 .sidebar {
-  position: fixed; top: 0; left: 0;
-  width: 250px; height: 100vh;
+  position: fixed;
+  top: 0; left: 0;
+  width: 250px;
+  height: 100vh;
   background: #1c1c1e;
-  transition: width 0.3s ease;
-  display: flex; flex-direction: column;
+  transition: width .3s ease;
+  display: flex;
+  flex-direction: column;
   z-index: 1000;
 }
-.sidebar.closed { width: 70px; }
-
-/* HEADER */
-.sidebar-header {
-  display: flex; align-items: center;
-  padding: 1rem;
+.sidebar.closed {
+  width: 70px;
 }
-.logo-icon { font-size: 1.75rem; color: #007bff; }
-.logo-text { margin-left: 0.5rem; color: #fff; font-size: 1.25rem; }
 
-/* NAV */
+/* ===== HEADER ===== */
+.sidebar-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+  text-align: center;
+  border-bottom: 1px solid #333;
+}
+.logo-icon {
+  font-size: 1.75rem;
+  color: #fff;
+  transition: color .3s ease;
+}
+.logo-text {
+  margin-top: .5rem;
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 200px;
+  opacity: 1;
+  transition: max-width .3s ease, opacity .3s ease;
+}
+.sidebar.closed .logo-text {
+  max-width: 0;
+  opacity: 0;
+}
+
+/* ===== NAV ===== */
 .sidebar-nav {
-  flex: 1; overflow-y: auto;
-  display: flex; flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.sidebar-nav::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
 }
 .nav-link {
-  display: flex; align-items: center;
-  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  color: #fff !important;
+  transition: background .2s ease, padding .3s ease;
+  text-decoration: none;
 }
 .sidebar.open .nav-link {
   padding: 1rem 1.25rem;
@@ -35,135 +74,173 @@
 }
 .nav-link:hover,
 .nav-link.active {
-  background: rgba(0,123,255,0.2);
-  color: #fff;
+  background: rgba(0,123,255,.2);
 }
 .nav-icon {
   flex-shrink: 0;
+  color: #fff;
+  transition: font-size .3s ease;
 }
 .sidebar.open .nav-icon {
   font-size: 1.5rem;
 }
 .sidebar.closed .nav-icon {
-  font-size: 1.75rem;
+  font-size: 2rem;
 }
 .nav-label {
-  margin-left: 0.5rem;
+  margin-left: .5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 150px;
+  opacity: 1;
+  transition: max-width .3s ease, opacity .3s ease;
+}
+.sidebar.closed .nav-label {
+  max-width: 0;
+  opacity: 0;
 }
 
-/* FOOTER COMÚN */
+/* ===== FOOTER COMÚN ===== */
 .sidebar-footer {
-  padding: 0.5rem 1rem;
+  padding: .5rem 1rem;
+  border-top: 1px solid #333;
 }
 .divider {
-  height: 1px; background: #444;
-  margin-bottom: 0.5rem;
+  height: 1px;
+  background: #333;
+  margin-bottom: .5rem;
 }
 
-/* OPEN FOOTER */
-.sidebar-footer.open .selector label {
-  color: #b0b0b0; font-size: 0.875rem;
+/* ===== FOOTER ABIERTO ===== */
+.sidebar-footer.open .selector,
+.sidebar-footer.open .btn-config {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: all;
+  transition: transform .3s ease, opacity .3s ease;
 }
-.sidebar-footer.open .selector select {
-  width: 100%; margin-top: 0.25rem;
-  background: #2d2d2d; color: #fff;
-  border: 1px solid #555; border-radius: 0.25rem;
-  padding: 0.25rem;
+.sidebar.closed .sidebar-footer.open .selector,
+.sidebar.closed .sidebar-footer.open .btn-config {
+  transform: translateY(10px);
+  opacity: 0;
+  pointer-events: none;
+}
+.selector label {
+  display: block;
+  color: #e5e7eb;
+  margin-bottom: .25rem;
+  font-size: .875rem;
+}
+.selector select {
+  width: 100%;
+  padding: .5rem;
+  background: #2d2d2d;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: .25rem;
 }
 .btn-config {
-  margin-top: 0.5rem; width: 100%;
-  background: transparent; border: 1px solid #b0b0b0;
-  color: #b0b0b0; padding: 0.5rem;
-  border-radius: 0.25rem;
-  display: flex; align-items: center; justify-content: center;
+  margin-top: .75rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid #555;
+  color: #b0b0b0;
+  padding: .5rem;
+  border-radius: .25rem;
+  transition: background .2s, color .2s;
 }
 .btn-config:hover {
-  background: #007bff; border-color: #007bff; color: #fff;
+  background: #007bff;
+  color: #fff;
 }
-.config-icon { margin-right: 0.5rem; }
+.config-icon {
+  margin-right: .5rem;
+  color: inherit;
+}
 
-/* CLOSED FOOTER */
+/* ===== FOOTER CERRADO ===== */
 .sidebar-footer.closed {
-  display: flex; flex-direction: column; align-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .sidebar-footer.closed .divider {
-  width: 80%; margin: 0 auto 0.5rem;
+  width: 50%;
+  margin: 0 auto .5rem;
 }
-.icon-selector {
-  display: flex; justify-content: space-around;
-  align-items: center; width: 100%;
+.icon-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
 }
 .arrow-btn {
-  background: #2d2d2d; border: none;
-  border-radius: 0.25rem;
-  width: 2.5rem; height: 2.5rem;
-  display: flex; align-items: center; justify-content: center;
-  color: #b0b0b0; font-size: 1.25rem;
-  cursor: pointer; transition: color 0.2s, background 0.2s;
+  background: #464646;
+  border: none;
+  border-radius: .25rem;
+  width: 2rem; height: .8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ddd;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background .3s ease, color .3s ease;
 }
-.arrow-btn:hover { color: #fff; background: #3a3a3a; }
+.arrow-btn:hover {
+  background: #3a3a3a;
+  color: #fff;
+}
 .div-initial {
-  width: 2.5rem; height: 2.5rem;
-  display: flex; align-items: center; justify-content: center;
-  background: #2d2d2d; border-radius: 0.25rem;
-  font-size: 1rem; color: #b0b0b0;
+  width: 2rem; height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2d2d2d;
+  border-radius: .25rem;
+  font-size: .9rem;
+  color: #ddd;
+  transition: background .3s ease, color .3s ease;
+}
+.div-initial:hover {
+  background: #3a3a3a;
+  color: #fff;
 }
 .footer-config-btn {
-  margin-top: 0.5rem;
-  background: #2d2d2d; border: none;
-  border-radius: 0.25rem;
+  background: #464646;
+  border: none;
+  border-radius: .25rem;
+  width: 2rem; height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ddd;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background .3s ease, color .3s ease;
+  margin-top: .5rem;
+}
+.footer-config-btn:hover {
+  background: #3a3a3a;
+  color: #fff;
+}
+
+/* ===== TOGGLE ===== */
+.toggle-btn {
+  position: absolute;
+  top: 1rem; right: -1.25rem;
   width: 2.5rem; height: 2.5rem;
+  background: #007bff;
+  border: none; border-radius: 50%;
+  color: #fff;
   display: flex; align-items: center; justify-content: center;
-  color: #b0b0b0; font-size: 1.25rem;
-  cursor: pointer; transition: color 0.2s, background 0.2s;
+  cursor: pointer;
+  transition: background .2s ease;
 }
-.footer-config-btn:hover { color: #fff; background: #3a3a3a; }
-
-/* TOGGLE */
-.toggle-btn {
-  position: absolute; top: 1rem; right: -15px;
-  width: 30px; height: 30px;
-  background: #007bff; border: none; border-radius: 50%;
-  color: #fff; display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: background 0.2s;
-}
-.toggle-btn:hover { background: #0056b3; }
-
-/* FORZAR iconos y botones en blanco */
-
-/* Navegación */
-.sidebar .nav-icon,
-.sidebar .nav-link,
-.sidebar .nav-link .nav-label {
-  color: #fff !important;
-}
-
-/* Botones de flecha en el footer cerrado */
-.sidebar-footer.closed .arrow-btn,
-.sidebar-footer.closed .footer-config-btn {
-  color: #fff !important;
-}
-
-/* Indicador de división */
-.sidebar-footer.closed .div-initial {
-  color: #fff !important;
-}
-
-/* Botón de configuración en el footer abierto */
-.sidebar-footer.open .btn-config,
-.sidebar-footer.open .config-icon {
-  color: #fff !important;
-  border-color: #fff !important;
-}
-
-/* Hover de los botones, mantenerlos blancos al pasar */
-.sidebar-footer.closed .arrow-btn:hover,
-.sidebar-footer.closed .footer-config-btn:hover,
-.sidebar-footer.open .btn-config:hover {
-  color: #fff !important;
-}
-
-/* Asegura que el toggle siga en blanco */
-.toggle-btn {
-  color: #fff !important;
+.toggle-btn:hover {
+  background: #0056b3;
 }
