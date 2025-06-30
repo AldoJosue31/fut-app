@@ -1,5 +1,6 @@
+// src/contexts/AuthContext.js
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../renderer/supabaseClient';
+import { supabase }       from '../renderer/supabaseClient';
 
 const AuthContext = createContext({
   user: null,
@@ -11,12 +12,12 @@ const AuthContext = createContext({
 });
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser]       = useState(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1) Rehidratar sesión al cargar
+    // 1) Rehidratar sesión al montar
     const fetchSession = async () => {
       try {
         const { data, error } = await supabase.auth.getSession();
@@ -29,28 +30,32 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
       }
     };
+
     fetchSession();
 
-    // 2) Suscribirse a eventos de auth (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESH...)
+    // 2) Escuchar cambios de auth
     const {
-      data: { subscription }
+      data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       setSession(newSession);
       setUser(newSession?.user || null);
 
-      // Crear/actualizar perfil en profiles justo tras el primer SIGNED_IN
+      // Solo tras iniciar sesión exitosamente
       if (event === 'SIGNED_IN' && newSession?.user) {
+        const user = newSession.user;
         try {
-          await supabase
+          // Inserta o actualiza el perfil con rol "admin"
+          const { error } = await supabase
             .from('profiles')
             .upsert({
-              id: newSession.user.id,
-              email: newSession.user.email,
+              id:   user.id,
+              email: user.email,
               role: 'admin'
-            })
+            }, { onConflict: 'id' })
             .single();
+          if (error) console.error('Error upsert profile:', error);
         } catch (err) {
-          console.error('Error al crear/actualizar profile:', err);
+          console.error('Excepción al upsert profile:', err);
         }
       }
     });
@@ -108,7 +113,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider
+      value={{ user, session, loading, signIn, signUp, signOut }}
+    >
       {children}
     </AuthContext.Provider>
   );
