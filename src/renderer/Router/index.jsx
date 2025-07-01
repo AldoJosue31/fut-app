@@ -3,30 +3,24 @@ import {
   createBrowserRouter,
   createRoutesFromElements,
   Route,
-  Outlet,
-  Navigate
+  Navigate,
 } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 
-import MainLayout from '../components/MainLayout';
-import ErrorPage from '../pages/ErrorPage';
-
-// Context y ruta protegida
-import { AuthProvider } from '../../contexts/AuthContext';
+import MainLayout    from '../components/MainLayout';
+import ErrorPage     from '../pages/ErrorPage';
 import ProtectedRoute from '../ProtectedRoute';
 
-// Páginas lazy-loaded
-const Home        = lazy(() => import('../pages/Home'));
-const Calendario  = lazy(() => import('../pages/Calendario'));
-const Equipos     = lazy(() => import('../pages/Equipos'));
-const Clasificacion = lazy(() => import('../pages/Clasificacion'));
-const Partidos    = lazy(() => import('../pages/Partidos'));
-const Editar      = lazy(() => import('../pages/Editar'));
-const Login       = lazy(() => import('../pages/Login'));
-const Signup      = lazy(() => import('../pages/Signup'));
+const Home         = lazy(() => import('../pages/Home'));
+const Calendario   = lazy(() => import('../pages/Calendario'));
+const Equipos      = lazy(() => import('../pages/Equipos'));
+const Clasificacion= lazy(() => import('../pages/Clasificacion'));
+const Partidos     = lazy(() => import('../pages/Partidos'));
+const Editar       = lazy(() => import('../pages/Editar'));
+const Login        = lazy(() => import('../pages/Login'));
+const Signup       = lazy(() => import('../pages/Signup'));
 
-// Animaciones y Suspense
 const PageWrapper = ({ children }) => {
   const location = useLocation();
   return (
@@ -43,24 +37,25 @@ const PageWrapper = ({ children }) => {
     </AnimatePresence>
   );
 };
-
-const LazyPage = (Element) => (
+const LazyPage = (Comp) => (
   <Suspense fallback={<div>Cargando...</div>}>
-    <PageWrapper>{Element}</PageWrapper>
+    <PageWrapper>{Comp}</PageWrapper>
   </Suspense>
 );
 
 export const router = createBrowserRouter(
   createRoutesFromElements(
-    // Agrupamos todo bajo AuthProvider
-   <Route>
+    <>
+      {/* 1) Ruta raíz: redirect automático a /login */}
+      <Route index element={<Navigate to="/login" replace />} />
 
-      {/* Rutas públicas */}
+      {/* 2) Rutas públicas */}
       <Route path="/login"  element={LazyPage(<Login />)} />
       <Route path="/signup" element={LazyPage(<Signup />)} />
 
-      {/* Rutas protegidas */}
+      {/* 3) Rutas protegidas */}
       <Route
+        path="/*"
         element={
           <ProtectedRoute>
             <MainLayout />
@@ -68,14 +63,17 @@ export const router = createBrowserRouter(
         }
         errorElement={<ErrorPage />}
       >
+        {/* estas rutas van dentro de MainLayout */}
         <Route index                element={LazyPage(<Home />)} />
         <Route path="calendario"    element={LazyPage(<Calendario />)} />
         <Route path="equipos"       element={LazyPage(<Equipos />)} />
         <Route path="clasificacion" element={LazyPage(<Clasificacion />)} />
         <Route path="partidos"      element={LazyPage(<Partidos />)} />
         <Route path="editar"        element={LazyPage(<Editar />)} />
-        <Route path="*"             element={<ErrorPage />} />
       </Route>
-    </Route>
+
+      {/* 4) Cualquier otra ruta al login */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </>
   )
 );
