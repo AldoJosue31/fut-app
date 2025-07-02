@@ -1,6 +1,7 @@
-import { supabase } from '../supabaseClient';
+import { supabase, ensureOnline } from '../supabaseClient';
 
 export async function getDivisions() {
+  ensureOnline(); // Lanza error si no hay conexión
   const { data, error } = await supabase
     .from('divisions')
     .select('id, name')
@@ -10,6 +11,7 @@ export async function getDivisions() {
 }
 
 export async function addDivision(division) {
+  ensureOnline(); // Lanza error si no hay conexión
   const { data, error } = await supabase
     .from('divisions')
     .insert([{ name: division.name }])
@@ -19,6 +21,7 @@ export async function addDivision(division) {
 }
 
 export async function updateDivision(id, division) {
+  ensureOnline(); // Lanza error si no hay conexión
   const { data, error } = await supabase
     .from('divisions')
     .update({ name: division.name })
@@ -29,6 +32,7 @@ export async function updateDivision(id, division) {
 }
 
 export async function deleteDivision(id) {
+  ensureOnline(); // Lanza error si no hay conexión
   const { error } = await supabase
     .from('divisions')
     .delete()

@@ -1,7 +1,8 @@
 // src/services/playersService.js
-import { supabase } from '../supabaseClient';
+import { supabase, ensureOnline } from '../supabaseClient';
 
 export async function getPlayersByTeam(teamId) {
+  ensureOnline(); // Lanza error si no hay conexión
   const { data, error } = await supabase
     .from('jugadores')
     .select('id, nombre, apellido, equipo_id')
@@ -11,6 +12,7 @@ export async function getPlayersByTeam(teamId) {
 }
 
 export async function addPlayers(players) {
+  ensureOnline(); // Lanza error si no hay conexión
   const { error } = await supabase
     .from('jugadores')
     .insert(players);
@@ -20,6 +22,7 @@ export async function addPlayers(players) {
 // ---------------------------------------------------
 // Nuevas funciones para estadísticas de goles
 export const getPlayerStats = async (playerId) => {
+  ensureOnline(); // Lanza error si no hay conexión
   // asumiendo que tienes una tabla player_goals con columnas player_id, season, goals
   const { data, error } = await supabase
     .from('player_goals')
@@ -32,6 +35,7 @@ export const getPlayerStats = async (playerId) => {
 };
 
 export const getPlayerSeasonStats = async (playerId, season) => {
+  ensureOnline(); // Lanza error si no hay conexión
   const { data, error } = await supabase
     .from('player_goals')
     .select('goals')

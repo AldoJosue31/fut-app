@@ -1,6 +1,7 @@
 // src/renderer/components/Sidebar.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';  // ← IMPORTA useAuth
 import 'bootstrap/dist/css/bootstrap.min.css';
 import * as bootstrap from 'bootstrap';
 import {
@@ -11,6 +12,7 @@ import {
   FaFutbol,
   FaCalendarAlt,
   FaCog,
+  FaSignOutAlt,  // ← icono para cerrar sesión
   FaChevronLeft,
   FaChevronRight,
 } from 'react-icons/fa';
@@ -31,6 +33,7 @@ const ROUTES = [
 export default function Sidebar({ isOpen, onToggle }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { signOut } = useAuth();
 
   const [divs, setDivs]             = useState([]);
   const [currentDiv, setCurrentDiv] = useState(0);
@@ -99,6 +102,15 @@ export default function Sidebar({ isOpen, onToggle }) {
   const nextDiv = () => setCurrentDiv(i => (i + 1) % divs.length);
   const initial = divs[currentDiv]?.charAt(0).toUpperCase() || '';
 
+    const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/login', { replace: true });
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
+
   return (
     <aside className={`sidebar ${isOpen ? 'open' : 'closed'}`} onWheel={onWheel}>
       {/* HEADER */}
@@ -145,6 +157,14 @@ export default function Sidebar({ isOpen, onToggle }) {
             <FaCog className="config-icon"/>
             Configuración
           </button>
+          <button
+           className="btn-logout"
+           onClick={handleLogout}
+           style={{ marginTop: '1rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+           >
+           <FaSignOutAlt style={{ marginRight: '0.5rem' }}/>
+           Cerrar Sesión
+         </button>
         </div>
       ) : (
         <div className="sidebar-footer closed">
@@ -179,6 +199,15 @@ export default function Sidebar({ isOpen, onToggle }) {
           >
             <FaCog/>
           </button>
+        {/* Cerramos sesión incluso en estado cerrado */}
+         <button
+           className="footer-logout-btn"
+           onClick={handleLogout}
+           data-bs-toggle="tooltip"
+           title="Cerrar Sesión"
+         >
+           <FaSignOutAlt />
+         </button>
         </div>
       )}
 

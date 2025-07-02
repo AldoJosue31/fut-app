@@ -1,7 +1,8 @@
 // src/services/profileService.js
-import { supabase } from '../supabaseClient';
+import { supabase, ensureOnline } from '../supabaseClient';
 
 export const createProfile = async (user, role = 'admin') => {
+  ensureOnline();
   const { data, error } = await supabase
     .from('profiles')
     .insert({ id: user.id, email: user.email, role }) // ahora role por defecto es 'admin'
@@ -11,6 +12,7 @@ export const createProfile = async (user, role = 'admin') => {
 };
 
 export const getProfile = async (userId) => {
+  ensureOnline();
   const { data, error } = await supabase
     .from('profiles')
     .select('id, email, role')

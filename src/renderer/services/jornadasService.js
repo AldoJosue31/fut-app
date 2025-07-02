@@ -1,7 +1,8 @@
-import { supabase } from '../supabaseClient.js';
+import { supabase, ensureOnline } from '../supabaseClient';
 
 // Listar todas las jornadas
 export async function getJornadas() {
+  ensureOnline();
   const { data, error } = await supabase
     .from('jornadas')
     .select('*')
@@ -12,6 +13,7 @@ export async function getJornadas() {
 
 // Listar jornadas por temporada
 export async function getJornadasBySeason(season) {
+  ensureOnline();
   const { data, error } = await supabase
     .from('jornadas')
     .select('*')
@@ -23,6 +25,7 @@ export async function getJornadasBySeason(season) {
 
 // Agregar una nueva jornada
 export async function addJornada(name, division, season) {
+  ensureOnline();
   const { data, error } = await supabase
     .from('jornadas')
     .insert([{ name, division, season }])
@@ -33,6 +36,7 @@ export async function addJornada(name, division, season) {
 
 // Eliminar una jornada por su ID
 export async function deleteJornada(id) {
+  ensureOnline();
   const { error } = await supabase
     .from('jornadas')
     .delete()
@@ -42,6 +46,7 @@ export async function deleteJornada(id) {
 
 // Verificar si una división ya tiene jornadas creadas para una temporada
 export async function isTorneoComenzado(division, season) {
+  ensureOnline();
   const { data, error } = await supabase
     .from('jornadas')
     .select('*')

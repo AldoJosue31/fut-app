@@ -1,11 +1,12 @@
 // src/services/configService.js
-import { supabase } from '../supabaseClient';
+import { supabase, ensureOnline } from '../supabaseClient';
 
 const CONFIG_TABLE = 'global_lineup_config';
 const CONFIG_PK    = 1;
 
 /** Lee la configuración global de plantilla. */
 export async function getGlobalLineupConfig() {
+  ensureOnline(); // Lanza error si no hay conexión
   const { data, error, status } = await supabase
     .from(CONFIG_TABLE)
     .select('starters,subs')
@@ -22,6 +23,7 @@ export async function getGlobalLineupConfig() {
 
 /** Inserta o actualiza la configuración global. */
 export async function upsertGlobalLineupConfig(starters, subs) {
+  ensureOnline(); // Lanza error si no hay conexión
   const { error } = await supabase
     .from(CONFIG_TABLE)
     .upsert(

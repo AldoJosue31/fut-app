@@ -1,7 +1,8 @@
 // src/services/teamsService.js
-import { supabase } from '../supabaseClient';
+import { supabase, ensureOnline } from '../supabaseClient';
 
 export const getTeams = async () => {
+  ensureOnline(); // Lanza error si no hay conexión
   const { data, error } = await supabase
     .from('teams')
     .select('*')
@@ -11,6 +12,7 @@ export const getTeams = async () => {
 };
 
 export const addTeam = async (team) => {
+  ensureOnline(); // Lanza error si no hay conexión
   const { data, error } = await supabase
     .from('teams')
     .insert([team])
@@ -21,6 +23,7 @@ export const addTeam = async (team) => {
 };
 
 export const deleteTeam = async (id) => {
+  ensureOnline(); // Lanza error si no hay conexión
   const { error } = await supabase
     .from('teams')
     .delete()
@@ -29,6 +32,7 @@ export const deleteTeam = async (id) => {
 };
 
 export async function updateTeam(id, team) {
+  ensureOnline(); // Lanza error si no hay conexión
   const { data, error } = await supabase
     .from('teams')
     .update(team)
@@ -41,6 +45,7 @@ export async function updateTeam(id, team) {
 // ---------------------------------------------------
 // Nuevas funciones para estadísticas
 export const getTeamStats = async (teamId) => {
+  ensureOnline(); // Lanza error si no hay conexión
   // usa los campos wins, draws, losses de la tabla teams
   const { data, error } = await supabase
     .from('teams')
@@ -56,6 +61,7 @@ export const getTeamStats = async (teamId) => {
 };
 
 export const getTeamTournamentStats = async (teamId, tournamentId) => {
+  ensureOnline(); // Lanza error si no hay conexión
   const { data, error } = await supabase
     .from('team_tournament_stats')
     .select('wins,draws,losses')

@@ -1,32 +1,28 @@
+// src/renderer/router/index.jsx
 import React, { lazy, Suspense } from 'react';
-import {
-  createBrowserRouter,
-  createRoutesFromElements,
-  Route,
-  Navigate,
-} from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 
-import MainLayout    from '../components/MainLayout';
-import ErrorPage     from '../pages/ErrorPage';
 import ProtectedRoute from '../ProtectedRoute';
+import MainLayout     from '../components/MainLayout';
+import ErrorPage      from '../pages/ErrorPage';
+import FootballLoader from '../components/FootballLoader';
 
-const Home         = lazy(() => import('../pages/Home'));
-const Calendario   = lazy(() => import('../pages/Calendario'));
-const Equipos      = lazy(() => import('../pages/Equipos'));
-const Clasificacion= lazy(() => import('../pages/Clasificacion'));
-const Partidos     = lazy(() => import('../pages/Partidos'));
-const Editar       = lazy(() => import('../pages/Editar'));
-const Login        = lazy(() => import('../pages/Login'));
-const Signup       = lazy(() => import('../pages/Signup'));
+const Login         = lazy(() => import('../pages/Login'));
+const Signup        = lazy(() => import('../pages/Signup'));
+const Home          = lazy(() => import('../pages/Home'));
+const Calendario    = lazy(() => import('../pages/Calendario'));
+const Equipos       = lazy(() => import('../pages/Equipos'));
+const Clasificacion = lazy(() => import('../pages/Clasificacion'));
+const Partidos      = lazy(() => import('../pages/Partidos'));
+const Editar        = lazy(() => import('../pages/Editar'));
 
 const PageWrapper = ({ children }) => {
-  const location = useLocation();
+  const loc = useLocation();
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={location.pathname}
+        key={loc.pathname}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -10 }}
@@ -37,23 +33,24 @@ const PageWrapper = ({ children }) => {
     </AnimatePresence>
   );
 };
-const LazyPage = (Comp) => (
-  <Suspense fallback={<div>Cargando...</div>}>
+
+const Lazy = (Comp) => (
+  <Suspense fallback={<FootballLoader />}>
     <PageWrapper>{Comp}</PageWrapper>
   </Suspense>
 );
 
-export const router = createBrowserRouter(
-  createRoutesFromElements(
-    <>
-      {/* 1) Ruta raíz: redirect automático a /login */}
-      <Route index element={<Navigate to="/login" replace />} />
+export default function AppRouter() {
+  return (
+    <Routes>
+      {/* raíz → login */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
 
-      {/* 2) Rutas públicas */}
-      <Route path="/login"  element={LazyPage(<Login />)} />
-      <Route path="/signup" element={LazyPage(<Signup />)} />
+      {/* públicas */}
+      <Route path="/login"  element={Lazy(<Login />)} />
+      <Route path="/signup" element={Lazy(<Signup />)} />
 
-      {/* 3) Rutas protegidas */}
+      {/* protegidas */}
       <Route
         path="/*"
         element={
@@ -63,17 +60,16 @@ export const router = createBrowserRouter(
         }
         errorElement={<ErrorPage />}
       >
-        {/* estas rutas van dentro de MainLayout */}
-        <Route index                element={LazyPage(<Home />)} />
-        <Route path="calendario"    element={LazyPage(<Calendario />)} />
-        <Route path="equipos"       element={LazyPage(<Equipos />)} />
-        <Route path="clasificacion" element={LazyPage(<Clasificacion />)} />
-        <Route path="partidos"      element={LazyPage(<Partidos />)} />
-        <Route path="editar"        element={LazyPage(<Editar />)} />
+        <Route index                element={Lazy(<Home />)} />
+        <Route path="calendario"    element={Lazy(<Calendario />)} />
+        <Route path="equipos"       element={Lazy(<Equipos />)} />
+        <Route path="clasificacion" element={Lazy(<Clasificacion />)} />
+        <Route path="partidos"      element={Lazy(<Partidos />)} />
+        <Route path="editar"        element={Lazy(<Editar />)} />
       </Route>
 
-      {/* 4) Cualquier otra ruta al login */}
+      {/* fallback */}
       <Route path="*" element={<Navigate to="/login" replace />} />
-    </>
-  )
-);
+    </Routes>
+  );
+}
