@@ -1,104 +1,105 @@
 // src/renderer/pages/Login.jsx
-import React, { useState, useEffect } from 'react';
-import { useAuth }        from '../../contexts/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState } from 'react'
+import { useAuth }          from '../../contexts/AuthContext'
+import { useNavigate, Link } from 'react-router-dom'
 
-export default function Login() {
-  const { signIn, signOut } = useAuth();
-  const navigate             = useNavigate();
+const Login = () => {
+  const { signIn } = useAuth()
+  const navigate   = useNavigate()
 
-  const [email,    setEmail]    = useState('');
-  const [password, setPassword] = useState('');
-  const [remember, setRemember] = useState(() => {
-    return localStorage.getItem('remember') === 'true';
-  });
-  const [errorMsg, setErrorMsg] = useState('');
-
-  // Si NO marcó "remember", al cerrar pestaña hacemos signOut
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (!remember) signOut().catch(console.error);
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () =>
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [remember, signOut]);
+  const [email,    setEmail]    = useState('')
+  const [password, setPassword] = useState('')
+  const [errorMsg, setErrorMsg] = useState('')
+  const [loading,  setLoading]  = useState(false)
 
   const onSubmit = async e => {
-    e.preventDefault();
-    setErrorMsg('');
-    // Guardamos la preferencia
-    localStorage.setItem('remember', remember ? 'true' : 'false');
+    e.preventDefault()
+    setErrorMsg('')
+    setLoading(true)
 
     try {
-      await signIn(email, password);
-      navigate('/', { replace: true });
-    } catch {
-      setErrorMsg('📛 Email o contraseña incorrectos');
+      const { data, error } = await signIn(email, password)
+
+      if (error) {
+        // mostramos SIEMPRE error.message
+        setErrorMsg(error.message || 'Credenciales inválidas')
+      } else {
+        // login OK
+        navigate('/', { replace: true })
+      }
+    } catch (err) {
+      setErrorMsg(err.message || 'Error inesperado')
+    } finally {
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <main className="main" style={{
-      minHeight: '100vh',
-      display:   'flex',
-      justifyContent: 'center',
-      alignItems:     'center',
-      backgroundColor:'#2D2D2D'
+      minHeight: '100vh', display: 'flex',
+      justifyContent: 'center', alignItems: 'center',
+      backgroundColor: '#2D2D2D'
     }}>
-      <div className="content-box" style={{ maxWidth: '400px', width: '100%' }}>
-        <h1 className="title" style={{ textAlign: 'center' }}>Iniciar Sesión</h1>
+      <div className="content-box" style={{ width: '100%', maxWidth: '400px' }}>
+        <h1 className="title" style={{ textAlign: 'center' }}>
+          Iniciar Sesión
+        </h1>
+
         <form onSubmit={onSubmit} className="modal-body">
           <div className="form-group">
-            <label>Email</label>
+            <label htmlFor="email">Email</label>
             <input
-              type="email" value={email}
+              id="email" type="email" value={email}
               onChange={e => setEmail(e.target.value)}
-              required
+              required disabled={loading}
             />
           </div>
 
           <div className="form-group">
-            <label>Contraseña</label>
+            <label htmlFor="password">Contraseña</label>
             <input
-              type="password" value={password}
+              id="password" type="password" value={password}
               onChange={e => setPassword(e.target.value)}
-              required
+              required disabled={loading}
             />
-          </div>
-
-          <div className="form-group" style={{ marginTop: '0.5rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', color: '#E5E7EB' }}>
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={e => setRemember(e.target.checked)}
-                style={{ marginRight: '0.5rem' }}
-              />
-              Mantener sesión abierta
-            </label>
           </div>
 
           {errorMsg && (
-            <p style={{ color: '#DC2626', textAlign: 'center', marginTop: '0.5rem' }}>
+            <p style={{
+              color: '#DC2626',
+              textAlign: 'center',
+              marginTop: '0.5rem'
+            }}>
               {errorMsg}
             </p>
           )}
 
           <div className="modal-actions" style={{ marginTop: '1.5rem' }}>
-            <button type="submit" className="btn success" style={{ width: '100%' }}>
-              Entrar
+            <button
+              type="submit"
+              className="btn success"
+              style={{ width: '100%' }}
+              disabled={loading}
+            >
+              {loading ? 'Entrando…' : 'Entrar'}
             </button>
           </div>
         </form>
 
-        <p style={{ marginTop: '1rem', textAlign: 'center', color: '#9CA3AF' }}>
+        <p style={{
+          marginTop: '1rem',
+          textAlign: 'center',
+          color: '#9CA3AF'
+        }}>
           ¿No tienes cuenta?{' '}
-          <Link to="/signup" style={{ color: '#16A34A', fontWeight: '600' }}>
+          <Link to="/signup"
+                style={{ color: '#16A34A', fontWeight: '600' }}>
             Regístrate
           </Link>
         </p>
       </div>
     </main>
-  );
+  )
 }
+
+export default Login

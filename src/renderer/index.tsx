@@ -1,17 +1,18 @@
+// src/renderer/index.tsx
 import React, { useState, useEffect } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot }                 from 'react-dom/client';
 import { BrowserRouter, useNavigate } from 'react-router-dom';
 
-import AppRouter   from './router';               // ahora sin BrowserRouter
-import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import FootballLoader             from './components/FootballLoader';
-import ErrorBoundary              from './components/ErrorBoundary';
+import AppRouter                     from './router';
+import { AuthProvider, useAuth }     from '../contexts/AuthContext';
+import FootballLoader                from './components/FootballLoader';
+import ErrorBoundary                 from './components/ErrorBoundary';
 import './styles/styles.css';
 
-// —————————————————————————————————————————————————
-// NetworkMonitor (ahora SÍ dentro de <BrowserRouter>)
-// —————————————————————————————————————————————————
-const NetworkMonitor: React.FC<{children: React.ReactNode}> = ({ children }) => {
+// ——————————————
+// 1) NetworkMonitor: corre DENTRO de <BrowserRouter>
+// ——————————————
+const NetworkMonitor: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate    = useNavigate();
   const { signOut } = useAuth();
   const [online, setOnline] = useState(window.navigator.onLine);
@@ -21,7 +22,7 @@ const NetworkMonitor: React.FC<{children: React.ReactNode}> = ({ children }) => 
 
     const goOffline = () => {
       setOnline(false);
-      // tras 15s sin conexión, desloguea y redirige a /login
+      // Si tras 15s seguimos sin conexión, desloguea y lleva a /login
       tid = window.setTimeout(async () => {
         if (!navigator.onLine) {
           await signOut();
@@ -68,17 +69,17 @@ const NetworkMonitor: React.FC<{children: React.ReactNode}> = ({ children }) => 
   );
 };
 
-// —————————————————————————————————————————————————
-// Loader mientras se rehidrata la sesión
-// —————————————————————————————————————————————————
+// ——————————————
+// 2) AppWithAuthLoader: muestra loader hasta que rehidrate auth
+// ——————————————
 const AppWithAuthLoader: React.FC = () => {
   const { loading } = useAuth();
   return loading ? <FootballLoader /> : <AppRouter />;
 };
 
-// —————————————————————————————————————————————————
-// Render principal
-// —————————————————————————————————————————————————
+// ——————————————
+// 3) Render principal
+// ——————————————
 const container = document.getElementById('root')!;
 const root = createRoot(container);
 

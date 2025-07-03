@@ -1,105 +1,99 @@
 // src/contexts/AuthContext.js
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../renderer/supabaseClient';
+import React, { createContext, useContext, useEffect, useState } from 'react'
+import { supabase } from '../renderer/supabaseClient'
 
-const AuthContext = createContext({ /* ... */ });
+const AuthContext = createContext({
+  user:    null,
+  session: null,
+  loading: true,
+  signIn:  async () => ({ data: null, error: null }),
+  signUp:  async () => ({ data: null, error: null }),
+  signOut: async () => {},
+})
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser]       = useState(null);
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user,    setUser]    = useState(null)
+  const [session, setSession] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // rehidratar…
-    const fetchSession = async () => {
-      try {
-        if (!navigator.onLine) {
-          // sin Internet, salimos rápido
-          return;
+    let sub
+    ;(async () => {
+      const {
+        data: { session: s },
+        error: sessError
+      } = await supabase.auth.getSession()
+      if (!sessError && s) {
+        setSession(s)
+        setUser(s.user)
+      }
+      setLoading(false)
+    })()
+
+    sub = supabase.auth
+      .onAuthStateChange((_, s) => {
+        setSession(s)
+        setUser(s?.user ?? null)
+        if (_ === 'SIGNED_IN' && s?.user) {
+          const u = s.user
+          supabase
+            .from('profiles')
+            .upsert({ id: u.id, email: u.email, role: 'admin' }, {
+              onConflict: 'id',
+              returning: 'minimal'
+            })
+            .then(({ error }) => error && console.error('upsert profile:', error))
         }
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        setSession(data.session);
-        setUser(data.session?.user || null);
-      } catch (err) {
-        console.error('Error rehidratando sesión:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSession();
+      })
+      .data.subscription
 
-    // listener onAuthStateChange (igual, solo si hay Internet)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, newSession) => {
-      setSession(newSession);
-      setUser(newSession?.user || null);
-
-      if (event === 'SIGNED_IN' && newSession?.user && navigator.onLine) {
-        // upsert perfil…
-        supabase
-          .from('profiles')
-          .upsert({ /* … */ }, { onConflict: 'id' })
-          .single()
-          .catch(console.error);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => sub?.unsubscribe()
+  }, [])
 
   const signIn = async (email, password) => {
-    setLoading(true);
+    setLoading(true)
+    let data = null, error = null
+
     try {
-      if (!navigator.onLine) throw new Error('No hay conexión');
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      setSession(data.session);
-      setUser(data.user);
-      return { data, error };
+      const res = await supabase.auth.signInWithPassword({ email, password })
+      data  = res.data
+      error = res.error
+      if (!error && data.session) {
+        setSession(data.session)
+        setUser(data.user)
+      }
+    } catch (err) {
+      error = err
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+    return { data, error }
+  }
 
   const signUp = async (email, password) => {
-    setLoading(true);
-    try {
-      if (!navigator.onLine) throw new Error('No hay conexión');
-      const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) throw error;
-      setSession(data.session);
-      setUser(data.user);
-      return { data, error };
-    } finally {
-      setLoading(false);
+    setLoading(true)
+    const { data, error } = await supabase.auth.signUp({ email, password })
+    if (!error && data.session) {
+      setSession(data.session)
+      setUser(data.user)
     }
-  };
+    setLoading(false)
+    return { data, error }
+  }
 
   const signOut = async () => {
-    setLoading(true);
-    try {
-      if (navigator.onLine) {
-        const { error } = await supabase.auth.signOut();
-        if (error) console.warn('Logout supabase falló:', error);
-      } else {
-        console.warn('Logout local sin Internet');
-      }
-      // limpiamos localmente igual
-      setSession(null);
-      setUser(null);
-    } catch (err) {
-      console.error('Error al cerrar sesión:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setLoading(true)
+    await supabase.auth.signOut()
+    setSession(null)
+    setUser(null)
+    setLoading(false)
+  }
 
   return (
     <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
-  );
-};
-export const useAuth = () => useContext(AuthContext);
+  )
+}
+
+export const useAuth = () => useContext(AuthContext)
