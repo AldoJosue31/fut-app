@@ -6,42 +6,45 @@ const AuthContext = createContext({
   user:    null,
   session: null,
   loading: true,
-  signIn:  async () => ({ data: null, error: null }),
-  signUp:  async () => ({ data: null, error: null }),
+  signIn:  async () => {},
+  signUp:  async () => {},
   signOut: async () => {},
 })
 
 export const AuthProvider = ({ children }) => {
-  const [user,    setUser]    = useState(null)
-  const [session, setSession] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user,           setUser]           = useState(null)
+  const [session,        setSession]        = useState(null)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [processing,     setProcessing]     = useState(false)
 
   useEffect(() => {
     let sub
     ;(async () => {
       const {
         data: { session: s },
-        error: sessError
+        error: sessErr
       } = await supabase.auth.getSession()
-      if (!sessError && s) {
+
+      if (s && !sessErr) {
         setSession(s)
         setUser(s.user)
       }
-      setLoading(false)
+      setInitialLoading(false)
     })()
 
     sub = supabase.auth
-      .onAuthStateChange((_, s) => {
+      .onAuthStateChange((event, s) => {
         setSession(s)
         setUser(s?.user ?? null)
-        if (_ === 'SIGNED_IN' && s?.user) {
+
+        if (event === 'SIGNED_IN' && s?.user) {
           const u = s.user
           supabase
             .from('profiles')
-            .upsert({ id: u.id, email: u.email, role: 'admin' }, {
-              onConflict: 'id',
-              returning: 'minimal'
-            })
+            .upsert(
+              { id: u.id, email: u.email, role: 'admin' },
+              { onConflict: 'id', returning: 'minimal' }
+            )
             .then(({ error }) => error && console.error('upsert profile:', error))
         }
       })
@@ -50,47 +53,69 @@ export const AuthProvider = ({ children }) => {
     return () => sub?.unsubscribe()
   }, [])
 
-  const signIn = async (email, password) => {
-    setLoading(true)
-    let data = null, error = null
-
-    try {
-      const res = await supabase.auth.signInWithPassword({ email, password })
-      data  = res.data
-      error = res.error
-      if (!error && data.session) {
-        setSession(data.session)
-        setUser(data.user)
-      }
-    } catch (err) {
-      error = err
-    } finally {
-      setLoading(false)
+  // --- Traducción de errores comunes ---
+  const traducirError = (msg) => {
+    switch (msg) {
+      case 'Invalid login credentials':
+        return 'Correo o contraseña incorrectos'
+      case 'Invalid input':
+        return 'Formato de dato inválido'
+      // añade más casos si quieres traducir otros mensajes de Supabase
+      default:
+        return msg
     }
-    return { data, error }
+  }
+
+  const signIn = async (email, password) => {
+    setProcessing(true)
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) {
+        // traducimos antes de lanzar
+        throw new Error(traducirError(error.message || error.error_description))
+      }
+      setSession(data.session)
+      setUser(data.user)
+      return data.session
+    } finally {
+      setProcessing(false)
+    }
   }
 
   const signUp = async (email, password) => {
-    setLoading(true)
-    const { data, error } = await supabase.auth.signUp({ email, password })
-    if (!error && data.session) {
+    setProcessing(true)
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password })
+      if (error) {
+        throw new Error(traducirError(error.message || error.error_description))
+      }
       setSession(data.session)
       setUser(data.user)
+      return data.session
+    } finally {
+      setProcessing(false)
     }
-    setLoading(false)
-    return { data, error }
   }
 
   const signOut = async () => {
-    setLoading(true)
+    setProcessing(true)
     await supabase.auth.signOut()
     setSession(null)
     setUser(null)
-    setLoading(false)
+    setProcessing(false)
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        loading:  initialLoading,
+        signIn,
+        signUp,
+        signOut
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

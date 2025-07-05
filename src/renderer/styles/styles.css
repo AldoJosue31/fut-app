@@ -915,3 +915,8 @@
   margin-top: 0.25rem;
 }
 
+.login-error {
+  position: relative !important;
+  z-index: 10 !important;
+  opacity: 1 !important;
+}

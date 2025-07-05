@@ -18,17 +18,13 @@ const Login = () => {
     setLoading(true)
 
     try {
-      const { data, error } = await signIn(email, password)
-
-      if (error) {
-        // mostramos SIEMPRE error.message
-        setErrorMsg(error.message || 'Credenciales inválidas')
-      } else {
-        // login OK
-        navigate('/', { replace: true })
-      }
+      // si hay error, signIn hará 'throw', y caeremos al catch
+      await signIn(email, password)
+      navigate('/', { replace: true })
     } catch (err) {
-      setErrorMsg(err.message || 'Error inesperado')
+           console.error('Error en login:', err)
+      // aquí sí recibimos el AuthApiError de Supabase
+      setErrorMsg(err.message || 'Email o contraseña incorrectos')
     } finally {
       setLoading(false)
     }
@@ -49,30 +45,28 @@ const Login = () => {
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <input
-              id="email" type="email" value={email}
+              id="email"
+              type="email"
+              value={email}
               onChange={e => setEmail(e.target.value)}
-              required disabled={loading}
+              required
+              disabled={loading}
             />
           </div>
 
           <div className="form-group">
             <label htmlFor="password">Contraseña</label>
             <input
-              id="password" type="password" value={password}
+              id="password"
+              type="password"
+              value={password}
               onChange={e => setPassword(e.target.value)}
-              required disabled={loading}
+              required
+              disabled={loading}
             />
           </div>
 
-          {errorMsg && (
-            <p style={{
-              color: '#DC2626',
-              textAlign: 'center',
-              marginTop: '0.5rem'
-            }}>
-              {errorMsg}
-            </p>
-          )}
+
 
           <div className="modal-actions" style={{ marginTop: '1.5rem' }}>
             <button
@@ -86,14 +80,28 @@ const Login = () => {
           </div>
         </form>
 
+        {/* Error de autenticación */}
+        {errorMsg && (
+          <div
+            className="login-error"
+            style={{
+              color: '#DC2626',
+              textAlign: 'center',
+              marginTop: '1rem',
+              padding: '0.5rem',
+            }}
+          >
+            {errorMsg}
+          </div>
+        )}
+
         <p style={{
           marginTop: '1rem',
           textAlign: 'center',
           color: '#9CA3AF'
         }}>
           ¿No tienes cuenta?{' '}
-          <Link to="/signup"
-                style={{ color: '#16A34A', fontWeight: '600' }}>
+          <Link to="/signup" style={{ color: '#16A34A', fontWeight: '600' }}>
             Regístrate
           </Link>
         </p>

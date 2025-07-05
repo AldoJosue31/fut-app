@@ -1,7 +1,7 @@
-/* src/renderer/components/FootballLoader.css */
+/* src/styles/FootballLoader.css */
 
 .football-loader-container {
-  background-color: #2D2D2D;
+  background-color: #1e1e1e;
   height: 100vh;
   display: flex;
   justify-content: center;
@@ -9,21 +9,28 @@
 }
 
 .football-loader {
-  animation: rotate-ball 1.5s linear infinite;
+  animation: rotate-ball 2s linear infinite;
+  filter: drop-shadow(0 0 6px rgba(22, 163, 74, 0.6));
 }
 
 .football-core {
-  animation: pulse-core 1.5s ease-in-out infinite;
+  animation: pulse-core 1.6s ease-in-out infinite;
 }
 
-/* Rota todo el balón */
+/* Rota el balón completo */
 @keyframes rotate-ball {
-  0%   { transform: rotate(0deg);   }
+  0%   { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
 
-/* Pulsa el “núcleo” verde del balón */
+/* Pulso del centro verde */
 @keyframes pulse-core {
-  0%, 100% { r: 10;    opacity: 1; }
-  50%      { r: 6;     opacity: 0.7; }
+  0%, 100% {
+    r: 12;
+    opacity: 1;
+  }
+  50% {
+    r: 9;
+    opacity: 0.7;
+  }
 }
