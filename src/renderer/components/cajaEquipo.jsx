@@ -1,25 +1,41 @@
-import React from 'react';
+// src/renderer/components/CajaEquipo.jsx
+import React from 'react'
+import PropTypes from 'prop-types'
 
-const cajaEquipo = ({ nombre, color }) => {
+export default function CajaEquipo({ team, onOpenForm, onDelete, disabled }) {
   return (
-    <div className="flex items-center border border-gray-600 rounded-lg overflow-hidden mb-2 bg-gray-700">
-      <div
-        className={`h-12 w-12 ${color} flex-shrink-0`}
-        style={{ clipPath: "polygon(0 0, 85% 0, 100% 50%, 85% 100%, 0 100%)" }}
-      ></div>
-      <div className="flex-1 flex items-center px-4">
-        <span className="text-white font-medium text-base">{nombre}</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <button className="w-8 h-8 bg-green-600 hover:bg-green-500 text-white rounded-full flex items-center justify-center">
-          ✔
+    <tr onClick={() => onOpenForm(team)}>
+      <td>{team.name}</td>
+      <td>{team.status}</td>
+      <td>{team.founded}</td>
+      <td>
+        <button
+          className="team-btn delete-btn"
+          onClick={e => {
+            e.stopPropagation()
+            onDelete(team)
+          }}
+          disabled={disabled}
+        >
+          ×
         </button>
-        <button className="w-8 h-8 bg-red-600 hover:bg-red-500 text-white rounded-full flex items-center justify-center">
-          ✘
-        </button>
-      </div>
-    </div>
-  );
-};
+      </td>
+    </tr>
+  )
+}
 
-export default cajaEquipo;
+CajaEquipo.propTypes = {
+  team: PropTypes.shape({
+    id:       PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    name:     PropTypes.string.isRequired,
+    status:   PropTypes.string.isRequired,
+    founded:  PropTypes.string.isRequired
+  }).isRequired,
+  onOpenForm: PropTypes.func.isRequired,
+  onDelete:   PropTypes.func.isRequired,
+  disabled:   PropTypes.bool
+}
+
+CajaEquipo.defaultProps = {
+  disabled: false
+}

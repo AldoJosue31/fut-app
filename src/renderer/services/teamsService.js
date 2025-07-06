@@ -1,6 +1,18 @@
 // src/services/teamsService.js
 import { supabase, ensureOnline } from '../supabaseClient';
 
+
+export const getTeamsWithStats = async (division) => {
+  ensureOnline(); // Lanza error si no hay conexión
+  const { data, error } = await supabase
+    .from('teams_with_stats')
+    .select('*')
+    .eq('division', division)
+    .order('name', { ascending: true });
+  if (error) throw error;
+  return data;
+};
+
 export const getTeams = async () => {
   ensureOnline(); // Lanza error si no hay conexión
   const { data, error } = await supabase
@@ -12,14 +24,15 @@ export const getTeams = async () => {
 };
 
 export const addTeam = async (team) => {
-  ensureOnline(); // Lanza error si no hay conexión
+  ensureOnline();
   const { data, error } = await supabase
     .from('teams')
-    .insert([team])
-    .select('id')
-    .single();
+    .insert([team])     // -> { name, color, founded, status, division }
+    .select('id')       // pedimos que nos devuelva el id generado
+    .single();          // seleccionamos un único registro
+
   if (error) throw error;
-  return data;
+  return data;         // -> { id: 123 }
 };
 
 export const deleteTeam = async (id) => {

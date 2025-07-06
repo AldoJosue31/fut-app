@@ -1,293 +1,302 @@
-import React, { useState, useEffect } from 'react';
-import '../styles/styles.css';
+// src/renderer/pages/Equipos.jsx
+import React, { useState, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import '../styles/styles.css'
+
+import CajaEquipo from '../components/CajaEquipo.jsx'
 import {
-  getTeams,
+  getTeamsWithStats,
   addTeam,
-  deleteTeam,
   updateTeam,
-  getTeamStats,
+  deleteTeam,
   getTeamTournamentStats
-} from '../services/teamsService.js';
+} from '../services/teamsService.js'
 import {
   getPlayersByTeam,
   addPlayers,
   getPlayerStats
-} from '../services/playersService.js';
-import { supabase } from '../supabaseClient.js';
-import { getJornadas } from '../services/jornadasService.js';
+} from '../services/playersService.js'
 
+// — Skeleton mientras cargan los datos
+function TeamsTableSkeleton({ rows = 7 }) {
+  return (
+    <tbody>
+      {Array.from({ length: rows }).map((_, i) => (
+                <tr
+          key={i}
+          className="skeleton-row"
+          style={{ '--index': i }}
+        >
+          <td><div className="skeleton skeleton-text short" /></td>
+          <td><div className="skeleton skeleton-text medium" /></td>
+          <td><div className="skeleton skeleton-text long" /></td>
+          <td><div className="skeleton skeleton-button" /></td>
+        </tr>
+      ))}
+    </tbody>
+  )
+}
+
+// — Modal para crear/editar
 function Modal({ title, children, actions, onClose, loading }) {
   return (
     <div className="modal-overlay">
       <div className="modal-content">
         <div className="modal-header">
           <h2>{title}</h2>
-          <button className="modal-close" onClick={onClose} disabled={loading}>×</button>
+          <button className="modal-close" onClick={onClose} disabled={loading}>
+            ×
+          </button>
         </div>
         <div className="modal-body">{children}</div>
-        {actions && <div className="modal-actions">{loading ? <span className="loader">Cargando...</span> : actions}</div>}
+        {actions && (
+          <div className="modal-actions">
+            {loading ? <span className="loader">Cargando…</span> : actions}
+          </div>
+        )}
       </div>
     </div>
-  );
+  )
 }
 
 export default function Equipos() {
-  const today = new Date().toISOString().split('T')[0];
-  const storedDivision = localStorage.getItem('division') || 'Primera';
+  const queryClient = useQueryClient()
 
-  const [division, setDivision] = useState(storedDivision);
-  const [teams, setTeams] = useState([]);
-  const [showForm, setShowForm] = useState(false);
-  const [tab, setTab] = useState('equipo');
-  const [statsView, setStatsView] = useState('historical');
-  const [selectedTournament, setSelectedTournament] = useState(null);
-
-  const [formTeam, setFormTeam] = useState({
-    id: null,
-    name: '',
-    color: '#000000',
-    founded: today,
-    status: 'Activo',
-    division: storedDivision
-  });
-  const [existingPlayers, setExistingPlayers] = useState([]);
-  const [stats, setStats] = useState({ wins: 0, draws: 0, losses: 0 });
-  const [newPlayers, setNewPlayers] = useState([{ nombre: '', apellido: '' }]);
-  const [loading, setLoading] = useState(false);
-
+  // 1) División reactiva (localStorage + evento divisionChange)
+  const [division, setDivision] = useState(
+    () => localStorage.getItem('division') || 'Primera'
+  )
   useEffect(() => {
-    async function loadTeams() {
-      const current = localStorage.getItem('division') || 'Primera';
-      setDivision(current);
-      setFormTeam(prev => ({ ...prev, division: current }));
-      const data = await getTeams();
-      const filtered = data
-        .filter(t => t.division === current)
-        .sort((a, b) => a.name.localeCompare(b.name));
-      const withStats = await Promise.all(
-        filtered.map(async team => {
-          const hist = await getTeamStats(team.id);
-          return {
-            ...team,
-            histWins: hist.total_wins,
-            histDraws: hist.total_draws,
-            histLosses: hist.total_losses
-          };
-        })
-      );
-      setTeams(withStats);
+    const onDivChange = () => {
+      const nueva = localStorage.getItem('division') || 'Primera'
+      setDivision(nueva)
+      refetch() // recarga la Query
     }
+    window.addEventListener('divisionChange', onDivChange)
+    return () => window.removeEventListener('divisionChange', onDivChange)
+  }, [])
 
-    loadTeams();
-    window.addEventListener('divisionChange', loadTeams);
-    return () => window.removeEventListener('divisionChange', loadTeams);
-  }, []);
+  // 2) Estados del modal/form
+  const [showForm, setShowForm]   = useState(false)
+  const [tab, setTab]             = useState('equipo')
+  const [statsView, setStatsView] = useState('historical')
+  const [stats, setStats]         = useState({ wins: 0, draws: 0, losses: 0 })
 
+  // 3) FormTeam (nuevo o editar)
+  const today = new Date().toISOString().split('T')[0]
+  const [formTeam, setFormTeam] = useState({
+    id:       null,
+    name:     '',
+    color:    '#000000',
+    founded:  today,
+    status:   'Activo',
+    division
+  })
+
+  // 4) Jugadores existentes + nuevos
+  const [existingPlayers, setExistingPlayers] = useState([])
+  const [newPlayers, setNewPlayers]           = useState([{ nombre: '', apellido: '' }])
+
+  // -------------------------------------------------------
+  // 5) React‑Query: cargar equipos+stats para la división
+  // -------------------------------------------------------
+  const {
+    data: teams = [],
+    isLoading,
+    error,
+    refetch
+  } = useQuery({
+    queryKey: ['teams', division],
+    queryFn:  () => getTeamsWithStats(division),
+    keepPreviousData: true
+  })
+
+  // -------------------------------------------------------
+  // 6) React‑Query: mutaciones (guardar y eliminar)
+  // -------------------------------------------------------
+  const mutateSave = useMutation({
+    mutationFn: async payload => {
+      if (payload.id) {
+        const { id, ...data } = payload
+        return updateTeam(id, data)
+      } else {
+        const { name, color, founded, status, division } = payload
+        return addTeam({ name, color, founded, status, division })
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['teams', division])
+      setShowForm(false)
+    }
+  })
+
+  const mutateDelete = useMutation({
+    mutationFn: id => deleteTeam(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['teams', division])
+    }
+  })
+
+  // -------------------------------------------------------
+  // 7) Abrir modal (nuevo o editar)
+  // -------------------------------------------------------
   async function openForm(team = null) {
-    setTab('equipo');
-    setStatsView('historical');
-    setSelectedTournament(null);
-    setStats({ wins: 0, draws: 0, losses: 0 });
+    setTab('equipo')
+    setStatsView('historical')
+    setStats({ wins: 0, draws: 0, losses: 0 })
 
-    if (team) {
-      // Omitir campos de estadísticas al editar para no enviar columnas inexistentes
-      const { histWins, histDraws, histLosses, ...base } = team;
-      setFormTeam({ ...base });
+    if (!team) {
+      // **Nuevo**
+      setFormTeam({
+        id:       null,
+        name:     '',
+        color:    '#000000',
+        founded:  today,
+        status:   'Activo',
+        division
+      })
+      setExistingPlayers([])
+      setNewPlayers([{ nombre: '', apellido: '' }])
+    } else {
+      // **Editar**
+      const { histWins, histDraws, histLosses, ...base } = team
+      setFormTeam(base)
 
-      const players = await getPlayersByTeam(team.id);
+      // Cargar jugadores y sus goles históricos
+      const players = await getPlayersByTeam(team.id)
       const enriched = await Promise.all(
         players.map(async p => {
-          let histGoals = 0;
+          let histGoals = 0
           try {
-            const hist = await getPlayerStats(p.id);
-            histGoals = hist.total_goals;
-          } catch {
-            histGoals = 0;
-          }
-          return { ...p, histGoals };
+            const { total_goals } = await getPlayerStats(p.id)
+            histGoals = total_goals
+          } catch {}
+          return { ...p, histGoals }
         })
-      );
-      setExistingPlayers(enriched);
+      )
+      setExistingPlayers(enriched)
 
-      const hist = await getTeamStats(team.id);
-      setStats({ wins: hist.total_wins, draws: hist.total_draws, losses: hist.total_losses });
-    } else {
-      setFormTeam({
-        id: null,
-        name: '',
-        color: '#000000',
-        founded: today,
-        status: 'Activo',
-        division
-      });
-      setExistingPlayers([]);
-    }
-
-    setNewPlayers([{ nombre: '', apellido: '' }]);
-    setShowForm(true);
-  }
-
-  function handleTeamChange(e) {
-    const { name, value } = e.target;
-    setFormTeam(prev => ({ ...prev, [name]: value }));
-  }
-
-  function handlePlayerChange(index, field, value) {
-    const arr = [...newPlayers];
-    arr[index][field] = value;
-    if (index === arr.length - 1 && arr[index].nombre && arr[index].apellido) {
-      arr.push({ nombre: '', apellido: '' });
-    }
-    setNewPlayers(arr);
-  }
-
-  function removePlayerRow(index) {
-    const arr = newPlayers.filter((_, i) => i !== index);
-    setNewPlayers(arr.length ? arr : [{ nombre: '', apellido: '' }]);
-  }
-
-  async function save() {
-    setLoading(true);
-    try {
-      let teamId = formTeam.id;
-      // Sólo incluir campos permitidos
-      const payload = {
-        name: formTeam.name,
-        color: formTeam.color,
-        founded: formTeam.founded,
-        status: formTeam.status,
-        division: formTeam.division
-      };
-
-      if (teamId) {
-        await updateTeam(teamId, payload);
-      } else {
-        const created = await addTeam(payload);
-        teamId = created.id;
-      }
-
-      const toAdd = newPlayers
-        .filter(p => p.nombre && p.apellido)
-        .map(p => ({
-          nombre: p.nombre,
-          apellido: p.apellido,
-          equipo_id: teamId
-        }));
-      if (toAdd.length) {
-        await addPlayers(toAdd);
-      }
-
-      // Recargar equipos
-      const data = await getTeams();
-      const filtered = data
-        .filter(t => t.division === division)
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-      const withStats = await Promise.all(
-        filtered.map(async team => {
-          const hist = await getTeamStats(team.id);
-          return {
-            ...team,
-            histWins: hist.total_wins,
-            histDraws: hist.total_draws,
-            histLosses: hist.total_losses
-          };
+      // Estadísticas globales (ya vienen en `teams`)
+      const found = teams.find(t => t.id === team.id)
+      if (found) {
+        setStats({
+          wins:  found.wins,
+          draws: found.draws,
+          losses: found.losses
         })
-      );
-      setTeams(withStats);
-      setShowForm(false);
-    } catch (e) {
-      console.error(e);
-      alert(e.message || 'Ocurrió un error al guardar.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  /**
-   * Recupera lista de torneos activos (que todavía tienen jornadas)
-   * donde participe este equipo (en tournament_teams).
-   */
-  async function getTorneosActivosPorEquipo(teamId) {
-    // 1) Recuperar todas las filas en tournament_teams para este team_id
-    const { data: tteams, error: errTT } = await supabase
-      .from('tournament_teams')
-      .select('division, season')
-      .eq('team_id', teamId);
-
-    if (errTT) throw errTT;
-
-    if (!tteams || tteams.length === 0) {
-      return []; // No participa en ningún torneo
-    }
-
-    // 2) Recuperar todas las jornadas vigentes
-    const allJ = await getJornadas(); // Cada fila tiene { id, name, division, season }
-    const activos = [];
-
-    // 3) Para cada registro en tournament_teams, verificamos
-    //    si existe al menos una jornada con la misma division y season
-    for (const row of tteams) {
-      const existeJ = allJ.some(j => j.division === row.division && j.season === row.season);
-      if (existeJ) {
-        activos.push(`${row.division} (${row.season})`);
       }
+
+      setNewPlayers([{ nombre: '', apellido: '' }])
     }
-    return activos; // lista de strings "División (Temporada)"
+
+    setShowForm(true)
   }
 
-  async function handleDelete(team) {
-    setLoading(true);
-    try {
-      const torneosActivos = await getTorneosActivosPorEquipo(team.id);
+  // -------------------------------------------------------
+  // 8) Handlers de inputs
+  // -------------------------------------------------------
+  const handleTeamChange = e => {
+    const { name, value } = e.target
+    setFormTeam(ft => ({ ...ft, [name]: value }))
+  }
+  const handlePlayerChange = (i, field, val) => {
+    const arr = [...newPlayers]
+    arr[i][field] = val
+    if (i === arr.length - 1 && arr[i].nombre && arr[i].apellido) {
+      arr.push({ nombre: '', apellido: '' })
+    }
+    setNewPlayers(arr)
+  }
+  const removePlayerRow = i => {
+    const arr = newPlayers.filter((_, idx) => idx !== i)
+    setNewPlayers(arr.length ? arr : [{ nombre: '', apellido: '' }])
+  }
 
-      if (torneosActivos.length > 0) {
-        // Bloquea: todavía hay jornadas en esos torneos
-        alert(
-          `No se puede eliminar el equipo "${team.name}" porque participa en el/los torneo(s) activo(s):\n\n` +
-          torneosActivos.join('\n')
-        );
-      } else {
-        // Si no está en torneo activo, confirmar y eliminar
-        if (window.confirm(`¿Estás seguro de que deseas eliminar el equipo "${team.name}"?`)) {
-          await deleteTeam(team.id);
-          // Refrescar lista
-          const data = await getTeams();
-          const filtered = data
-            .filter(t => t.division === division)
-            .sort((a, b) => a.name.localeCompare(b.name));
-          const withStats = await Promise.all(
-            filtered.map(async tm => {
-              const hist = await getTeamStats(tm.id);
-              return {
-                ...tm,
-                histWins: hist.total_wins,
-                histDraws: hist.total_draws,
-                histLosses: hist.total_losses
-              };
-            })
-          );
-          setTeams(withStats);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-      alert('Error al intentar eliminar el equipo.');
-    } finally {
-      setLoading(false);
+  // -------------------------------------------------------
+  // 9) Guardar equipo + jugadores nuevos
+  // -------------------------------------------------------
+  const onSave = async () => {
+    const payload = {
+      id:       formTeam.id,
+      name:     formTeam.name,
+      color:    formTeam.color,
+      founded:  formTeam.founded,
+      status:   formTeam.status,
+      division: formTeam.division
+    }
+    const result = await mutateSave.mutateAsync(payload)
+
+    // Si fue creación, result.id trae el nuevo ID
+    const teamId = payload.id || result.id
+
+    // Insertar jugadores nuevos
+    const toAdd = newPlayers
+      .filter(p => p.nombre && p.apellido)
+      .map(p => ({ nombre: p.nombre, apellido: p.apellido, equipo_id: teamId }))
+    if (toAdd.length) {
+      await addPlayers(toAdd)
     }
   }
 
-  async function loadTournamentStats(teamId, tournamentId) {
-    const tstats = await getTeamTournamentStats(teamId, tournamentId);
-    setStats({ wins: tstats.wins, draws: tstats.draws, losses: tstats.losses });
+  // -------------------------------------------------------
+  // 10) Eliminar
+  // -------------------------------------------------------
+  const handleDelete = team => {
+    if (window.confirm(`¿Eliminar equipo "${team.name}"?`)) {
+      mutateDelete.mutate(team.id)
+    }
+  }
+
+  // -------------------------------------------------------
+  // 11) Cargar estadísticas por torneo
+  // -------------------------------------------------------
+  const loadTournamentStats = async (teamId, torneoId) => {
+    const { wins, draws, losses } = await getTeamTournamentStats(teamId, torneoId)
+    setStats({ wins, draws, losses })
+  }
+
+  // — Renderizado —
+  if (isLoading) {
+    return (
+      <main className="main">
+        <h1 className="title">Equipos — {division}</h1>
+        <div className="content-box">
+          <table className="classification-table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Estado</th>
+                <th>Fundación</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <TeamsTableSkeleton rows={7} />
+          </table>
+        </div>
+      </main>
+    )
+  }
+
+  if (error) {
+    return (
+      <main className="main">
+        <h1 className="title">Equipos — {division}</h1>
+        <div className="content-box">
+          <p style={{ color: 'red' }}>Error al cargar: {error.message}</p>
+        </div>
+      </main>
+    )
   }
 
   return (
     <main className="main">
-      <h1 className="title">Equipos - {division}</h1>
+      <h1 className="title">Equipos — {division}</h1>
       <div className="content-box">
-        <button className="add-btn" onClick={() => openForm()} disabled={loading}>
+        <button
+          className="add-btn"
+          onClick={() => openForm(null)}
+          disabled={mutateSave.isLoading || mutateDelete.isLoading}
+        >
           Agregar
         </button>
         <table className="classification-table">
@@ -301,23 +310,13 @@ export default function Equipos() {
           </thead>
           <tbody>
             {teams.map(team => (
-              <tr key={team.id} className="team-row" onClick={() => openForm(team)}>
-                <td>{team.name}</td>
-                <td>{team.status}</td>
-                <td>{team.founded}</td>
-                <td>
-                  <button
-                    className="team-btn delete-btn"
-                    onClick={e => {
-                      e.stopPropagation();
-                      handleDelete(team);
-                    }}
-                    disabled={loading}
-                  >
-                    ×
-                  </button>
-                </td>
-              </tr>
+              <CajaEquipo
+                key={team.id}
+                team={team}
+                onOpenForm={openForm}
+                onDelete={handleDelete}
+                disabled={mutateSave.isLoading || mutateDelete.isLoading}
+              />
             ))}
           </tbody>
         </table>
@@ -327,42 +326,82 @@ export default function Equipos() {
         <Modal
           title={formTeam.id ? 'Editar Equipo' : 'Registrar Equipo'}
           onClose={() => setShowForm(false)}
-          loading={loading}
+          loading={mutateSave.isLoading}
           actions={
             <>
-              <button className="btn cancel" onClick={() => setShowForm(false)} disabled={loading}>
+              <button
+                className="btn cancel"
+                onClick={() => setShowForm(false)}
+                disabled={mutateSave.isLoading}
+              >
                 Cancelar
               </button>
-              <button className="btn success" onClick={save} disabled={loading || !formTeam.name.trim()}>
+              <button
+                className="btn success"
+                onClick={onSave}
+                disabled={mutateSave.isLoading || !formTeam.name.trim()}
+              >
                 Guardar
               </button>
             </>
           }
         >
+          {/* — TABS — */}
           <div className="tabs">
-            <button className={`tab ${tab === 'equipo' ? 'active-tab' : ''}`} onClick={() => setTab('equipo')} disabled={loading}>
+            <button
+              className={`tab ${tab === 'equipo'    ? 'active-tab' : ''}`}
+              onClick={() => setTab('equipo')}
+              disabled={mutateSave.isLoading}
+            >
               Equipo
             </button>
-            <button className={`tab ${tab === 'jugadores' ? 'active-tab' : ''}`} onClick={() => setTab('jugadores')} disabled={loading}>
+            <button
+              className={`tab ${tab === 'jugadores' ? 'active-tab' : ''}`}
+              onClick={() => setTab('jugadores')}
+              disabled={mutateSave.isLoading}
+            >
               Jugadores
             </button>
             {formTeam.id && (
-              <button className={`tab ${tab === 'estadisticas' ? 'active-tab' : ''}`} onClick={() => setTab('estadisticas')} disabled={loading}>
+              <button
+                className={`tab ${tab === 'estadisticas' ? 'active-tab' : ''}`}
+                onClick={() => setTab('estadisticas')}
+                disabled={mutateSave.isLoading}
+              >
                 Estadísticas
               </button>
             )}
           </div>
 
+          {/* — CONTENIDO POR TAB — */}
           {tab === 'equipo' && (
             <div className="section">
               <label>Nombre</label>
-              <input name="name" value={formTeam.name} onChange={handleTeamChange} />
+              <input
+                name="name"
+                value={formTeam.name}
+                onChange={handleTeamChange}
+              />
               <label>Color</label>
-              <input type="color" name="color" value={formTeam.color} onChange={handleTeamChange} />
+              <input
+                type="color"
+                name="color"
+                value={formTeam.color}
+                onChange={handleTeamChange}
+              />
               <label>Fundación</label>
-              <input type="date" name="founded" value={formTeam.founded} onChange={handleTeamChange} />
+              <input
+                type="date"
+                name="founded"
+                value={formTeam.founded}
+                onChange={handleTeamChange}
+              />
               <label>Estado</label>
-              <select name="status" value={formTeam.status} onChange={handleTeamChange}>
+              <select
+                name="status"
+                value={formTeam.status}
+                onChange={handleTeamChange}
+              >
                 <option value="Activo">Activo</option>
                 <option value="Inactivo">Inactivo</option>
               </select>
@@ -374,19 +413,30 @@ export default function Equipos() {
               <h3>Jugadores</h3>
               {existingPlayers.length > 0 && (
                 <ul className="jugadores-list">
-                  {existingPlayers.map(j => (
-                    <li key={j.id}>
-                      {j.nombre} {j.apellido}
+                  {existingPlayers.map(p => (
+                    <li key={p.id}>
+                      {p.nombre} {p.apellido} — Goles: {p.histGoals}
                     </li>
                   ))}
                 </ul>
               )}
               {newPlayers.map((p, i) => (
                 <div key={i} className="player-row">
-                  <input placeholder="Nombre" value={p.nombre} onChange={e => handlePlayerChange(i, 'nombre', e.target.value)} />
-                  <input placeholder="Apellido" value={p.apellido} onChange={e => handlePlayerChange(i, 'apellido', e.target.value)} />
+                  <input
+                    placeholder="Nombre"
+                    value={p.nombre}
+                    onChange={e => handlePlayerChange(i, 'nombre', e.target.value)}
+                  />
+                  <input
+                    placeholder="Apellido"
+                    value={p.apellido}
+                    onChange={e => handlePlayerChange(i, 'apellido', e.target.value)}
+                  />
                   {i < newPlayers.length - 1 && (
-                    <button className="btn small danger" onClick={() => removePlayerRow(i)}>
+                    <button
+                      className="btn small danger"
+                      onClick={() => removePlayerRow(i)}
+                    >
                       Eliminar
                     </button>
                   )}
@@ -398,19 +448,25 @@ export default function Equipos() {
           {tab === 'estadisticas' && (
             <div className="section">
               <h3>Estadísticas</h3>
-              <select value={statsView} onChange={e => setStatsView(e.target.value)}>
-                <option value="historical">Histórico</option>
+              <select
+                value={statsView}
+                onChange={e => setStatsView(e.target.value)}
+              >
+                <option value="historical">Global</option>
                 <option value="tournament">Por Torneo</option>
               </select>
               {statsView === 'tournament' && (
-                <select onChange={e => { setSelectedTournament(e.target.value); loadTournamentStats(formTeam.id, e.target.value); }}>
-                  <option value="1">Torneo Apertura</option>
-                  <option value="2">Torneo Clausura</option>
+                <select
+                  onChange={e => loadTournamentStats(formTeam.id, e.target.value)}
+                >
+                  <option value="">Selecciona torneo</option>
+                  <option value="1">Apertura</option>
+                  <option value="2">Clausura</option>
                 </select>
               )}
               <div className="stats-grid">
                 <div>Victorias: {stats.wins}</div>
-                <div>Empates: {stats.draws}</div>
+                <div>Empates:  {stats.draws}</div>
                 <div>Derrotas: {stats.losses}</div>
               </div>
             </div>
@@ -418,5 +474,5 @@ export default function Equipos() {
         </Modal>
       )}
     </main>
-  );
+  )
 }

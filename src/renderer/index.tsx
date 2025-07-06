@@ -2,12 +2,16 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot }                 from 'react-dom/client';
 import { BrowserRouter, useNavigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import AppRouter                     from './router';
 import { AuthProvider, useAuth }     from '../contexts/AuthContext';
 import FootballLoader                from './components/FootballLoader';
 import ErrorBoundary                 from './components/ErrorBoundary';
 import './styles/styles.css';
+
+// Inicializamos React Query
+const queryClient = new QueryClient();
 
 // ——————————————
 // 1) NetworkMonitor: corre DENTRO de <BrowserRouter>
@@ -78,22 +82,24 @@ const AppWithAuthLoader: React.FC = () => {
 };
 
 // ——————————————
-// 3) Render principal
+// 3) Render principal con React Query
 // ——————————————
 const container = document.getElementById('root')!;
 const root = createRoot(container);
 
 root.render(
   <React.StrictMode>
-    <AuthProvider>
-      <BrowserRouter>
-        <ErrorBoundary>
-          <NetworkMonitor>
-            <AppWithAuthLoader />
-          </NetworkMonitor>
-        </ErrorBoundary>
-      </BrowserRouter>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <BrowserRouter>
+          <ErrorBoundary>
+            <NetworkMonitor>
+              <AppWithAuthLoader />
+            </NetworkMonitor>
+          </ErrorBoundary>
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
   </React.StrictMode>
 );
 
