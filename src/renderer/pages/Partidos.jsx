@@ -276,17 +276,22 @@ async function handleStartDivision(div, startDate, isDouble = false) {
   }
 
   // Carga de partidos y jugadores
-  useEffect(() => {
-    async function loadMatches() {
-      if (!selectedJornada) {
-        setMatches([]);
-        return;
-      }
-      const data = await getMatchesByJornada(selectedJornada);
-      setMatches(data);
-    }
-    loadMatches();
-  }, [selectedJornada]);
+ useEffect(() => {
+   // Solo cargar cuando estemos viendo el tab "Jornadas"
+   if (activeTab !== 'Jornadas' || !selectedJornada) {
+     setMatches([]);          // limpiamos la lista para que no queden datos viejos
+     return;
+   }
+   (async () => {
+     try {
+       const data = await getMatchesByJornada(selectedJornada);
+       setMatches(data);
+     } catch (err) {
+       console.error('Error cargando partidos:', err);
+       setMatches([]);
+     }
+   })();
+ }, [activeTab, selectedJornada]);
 
   useEffect(() => {
     async function loadA() { teamA ? setPlayersA(await getPlayersByTeam(teamA)) : setPlayersA([]); }

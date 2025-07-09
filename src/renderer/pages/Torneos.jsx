@@ -1,6 +1,28 @@
 // src/renderer/pages/Torneos.jsx
 import React from 'react';
 import { getGlobalLineupConfig } from '../services/configService';
+import { TeamsTableSkeleton } from '../components/Skeletons.jsx';
+
+// — Skeleton durante la carga de torneos completos —
+function TorneosSkeleton({ rows = 3 }) {
+  return (
+    <main className="main">
+      <h1 className="title">Iniciar Torneos</h1>
+      <div className="content-box">
+        <table className="classification-table">
+          <thead>
+            <tr>
+              <th>División</th>
+              <th>Fecha de inicio</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <TeamsTableSkeleton rows={rows} />
+        </table>
+      </div>
+    </main>
+  );
+}
 
 export default function Torneos({
   divisions,
@@ -36,6 +58,12 @@ export default function Torneos({
     window.addEventListener('lineupConfigUpdated', handler);
     return () => window.removeEventListener('lineupConfigUpdated', handler);
   }, []);
+
+  // Si *todas* las divisiones están en loading, mostramos el skeleton completo
+  const allLoading = divisions.length > 0 && divisions.every(div => loadingDivs[div]);
+  if (allLoading) {
+    return <TorneosSkeleton rows={divisions.length} />;
+  }
 
   return (
     <div className="content-box">
@@ -87,6 +115,25 @@ export default function Torneos({
         {divisions.map(div => {
           const started = !!startedDivisions[div];
           const loading = !!loadingDivs[div];
+
+          // Si esta división está en loading, renderiza una fila esquelética
+          if (loading) {
+            return (
+              <div key={div} className="classification-table-wrapper">
+                <table className="classification-table">
+                  <thead>
+                    <tr>
+                      <th>División</th>
+                      <th>Fecha de inicio</th>
+                      <th>Acción</th>
+                    </tr>
+                  </thead>
+                  <TeamsTableSkeleton rows={1} />
+                </table>
+              </div>
+            );
+          }
+
           const list = allTeams.filter(
             t => t.division === div && (t.status === 'Activo' || tournamentTeams.includes(t.id))
           );
@@ -102,21 +149,34 @@ export default function Torneos({
                 {list.length > 0 ? (
                   list.map(t => (
                     <li key={t.id} className="team-box">
-                      {t.name} {t.status !== 'Activo' && <em style={{ opacity: 0.6 }}>(inactivo)</em>}
+                      {t.name}{' '}
+                      {t.status !== 'Activo' && (
+                        <em style={{ opacity: 0.6 }}>(inactivo)</em>
+                      )}
                     </li>
                   ))
                 ) : (
-                  <li style={{ color: '#9CA3AF', fontStyle: 'italic' }}>No hay equipos</li>
+                  <li style={{ color: '#9CA3AF', fontStyle: 'italic' }}>
+                    No hay equipos
+                  </li>
                 )}
               </ul>
 
-              <label style={{ color: '#E5E7EB', marginBottom: '0.25rem', display: 'block' }}>
+              <label
+                style={{
+                  color: '#E5E7EB',
+                  marginBottom: '0.25rem',
+                  display: 'block'
+                }}
+              >
                 Fecha de inicio
               </label>
               <input
                 type="date"
                 value={startDates[div] || ''}
-                onChange={e => setStartDates(prev => ({ ...prev, [div]: e.target.value }))}
+                onChange={e =>
+                  setStartDates(prev => ({ ...prev, [div]: e.target.value }))
+                }
                 disabled={started || loading}
                 style={{
                   background: '#2A2A2A',
@@ -129,7 +189,14 @@ export default function Torneos({
                 }}
               />
 
-              <label style={{ color: '#E5E7EB', display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+              <label
+                style={{
+                  color: '#E5E7EB',
+                  display: 'flex',
+                  alignItems: 'center',
+                  marginBottom: '1rem'
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={!!doubleRounds[div]}
@@ -157,7 +224,9 @@ export default function Torneos({
                 <button
                   className="btn success"
                   disabled={loading}
-                  onClick={() => handleStartDivision(div, startDates[div], !!doubleRounds[div])}
+                  onClick={() =>
+                    handleStartDivision(div, startDates[div], !!doubleRounds[div])
+                  }
                   style={{
                     background: loading ? '#4A7D32' : '#16A34A',
                     color: '#FFF',

@@ -2,7 +2,7 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 
-export default function CajaEquipo({ team, onOpenForm, onDelete, disabled }) {
+export default function CajaEquipo({ team, onOpenForm, onDelete, disabled = false }) {
   return (
     <tr onClick={() => onOpenForm(team)}>
       <td>{team.name}</td>
@@ -36,6 +36,4 @@ CajaEquipo.propTypes = {
   disabled:   PropTypes.bool
 }
 
-CajaEquipo.defaultProps = {
-  disabled: false
-}
+

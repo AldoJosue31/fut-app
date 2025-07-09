@@ -63,6 +63,11 @@ export async function createMatch({
 export async function getMatchesByJornada(jornadaId) {
   ensureOnline();
 
+  // ←–– Si no hay jornada seleccionada, devolvemos lista vacía sin llamar a Supabase
+  if (!jornadaId) {
+    return [];
+  }
+
   const { data, error } = await supabase
     .from('matches')
     .select('*')
