@@ -3,24 +3,65 @@ import React from 'react';
 import { getGlobalLineupConfig } from '../services/configService';
 import { TeamsTableSkeleton } from '../components/Skeletons.jsx';
 
-// — Skeleton durante la carga de torneos completos —
-function TorneosSkeleton({ rows = 3 }) {
+// — Skeleton durante la primera carga de la vista —
+function TorneosViewSkeleton({ rows = 3 }) {
   return (
-    <main className="main">
-      <h1 className="title">Iniciar Torneos</h1>
-      <div className="content-box">
-        <table className="classification-table">
-          <thead>
-            <tr>
-              <th>División</th>
-              <th>Fecha de inicio</th>
-              <th>Acción</th>
-            </tr>
-          </thead>
-          <TeamsTableSkeleton rows={rows} />
-        </table>
+    <div className="content-box">
+      {/* Cabecera */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div className="skeleton skeleton-text" style={{ width: '150px', height: '2rem' }} />
       </div>
-    </main>
+
+      {/* Configuración global */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div className="skeleton skeleton-text short" style={{ width: '80px' }} />
+        <div className="skeleton skeleton-text short" style={{ width: '80px' }} />
+      </div>
+
+      {/* Selector de Temporada */}
+      <div style={{ marginBottom: '2rem' }}>
+        <div className="skeleton skeleton-input" style={{ width: '200px', height: '2.5rem' }} />
+      </div>
+
+      {/* Grid de divisiones */}
+      <div
+        className="teams-grid"
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}
+      >
+        {Array.from({ length: rows }).map((_, i) => (
+          <div
+            key={i}
+            style={{
+              background: '#3A3A3A',
+              borderRadius: '0.75rem',
+              padding: '1rem',
+              minHeight: '250px',
+            }}
+          >
+            {/* Título de división */}
+            <div className="skeleton skeleton-text medium" style={{ width: '100px', marginBottom: '1rem' }} />
+
+            {/* Lista de equipos (3 ítems esqueléticos) */}
+            <ul className="teams-list" style={{ marginBottom: '1rem' }}>
+              {Array.from({ length: 3 }).map((_, j) => (
+                <li key={j}>
+                  <div className="skeleton skeleton-text short" style={{ width: '60%', margin: '0.5rem 0' }} />
+                </li>
+              ))}
+            </ul>
+
+            {/* Fecha de inicio */}
+            <div className="skeleton skeleton-input" style={{ width: '100%', height: '2rem', marginBottom: '1rem' }} />
+
+            {/* Checkbox de doble vuelta */}
+            <div className="skeleton skeleton-checkbox" style={{ width: '1.2rem', height: '1.2rem', marginBottom: '1rem' }} />
+
+            {/* Botón */}
+            <div className="skeleton skeleton-button" style={{ width: '100%', height: '2.5rem' }} />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -40,15 +81,16 @@ export default function Torneos({
   handleStartDivision
 }) {
   const [lineup, setLineup] = React.useState({ starters: 5, subs: 6 });
+  const [viewLoading, setViewLoading] = React.useState(true);
 
-  // 1) Al montar, leer la configuración global
+  // 1) Leer configuración global
   React.useEffect(() => {
     getGlobalLineupConfig()
       .then(setLineup)
       .catch(console.error);
   }, []);
 
-  // 2) Escuchar actualizaciones desde el Sidebar
+  // 2) Escuchar actualizaciones
   React.useEffect(() => {
     const handler = () => {
       getGlobalLineupConfig()
@@ -59,10 +101,18 @@ export default function Torneos({
     return () => window.removeEventListener('lineupConfigUpdated', handler);
   }, []);
 
-  // Si *todas* las divisiones están en loading, mostramos el skeleton completo
+  // 3) Cuando tengamos divisiones y equipos, quitamos el viewLoading
+  React.useEffect(() => {
+    if (divisions.length > 0 && allTeams.length > 0) {
+      setViewLoading(false);
+    }
+  }, [divisions, allTeams]);
+
+  // Si *todas* las divisiones están en loading, seguimos mostrando skeleton
   const allLoading = divisions.length > 0 && divisions.every(div => loadingDivs[div]);
-  if (allLoading) {
-    return <TorneosSkeleton rows={divisions.length} />;
+
+  if (viewLoading || allLoading) {
+    return <TorneosViewSkeleton rows={divisions.length || 3} />;
   }
 
   return (
@@ -71,7 +121,7 @@ export default function Torneos({
         Iniciar Torneos
       </h2>
 
-      {/* ==== Mostrar la configuración global ==== */}
+      {/* ==== Configuración global ==== */}
       <div style={{ marginBottom: '1.5rem', color: '#E5E7EB' }}>
         <strong>Titulares:</strong> {lineup.starters} &nbsp;|&nbsp;
         <strong>Suplentes:</strong> {lineup.subs}
@@ -116,8 +166,8 @@ export default function Torneos({
           const started = !!startedDivisions[div];
           const loading = !!loadingDivs[div];
 
-          // Si esta división está en loading, renderiza una fila esquelética
           if (loading) {
+            // Skeleton por división durante el inicio
             return (
               <div key={div} className="classification-table-wrapper">
                 <table className="classification-table">
@@ -177,7 +227,7 @@ export default function Torneos({
                 onChange={e =>
                   setStartDates(prev => ({ ...prev, [div]: e.target.value }))
                 }
-                disabled={started || loading}
+                disabled={started}
                 style={{
                   background: '#2A2A2A',
                   border: '1px solid rgba(255,255,255,0.2)',
@@ -201,7 +251,7 @@ export default function Torneos({
                   type="checkbox"
                   checked={!!doubleRounds[div]}
                   onChange={e => setDoubleRounds(div, e.target.checked)}
-                  disabled={started || loading}
+                  disabled={started}
                   style={{ marginRight: '0.5rem' }}
                 />
                 Doble vuelta
@@ -228,15 +278,14 @@ export default function Torneos({
                     handleStartDivision(div, startDates[div], !!doubleRounds[div])
                   }
                   style={{
-                    background: loading ? '#4A7D32' : '#16A34A',
+                    background: '#16A34A',
                     color: '#FFF',
                     width: '100%',
                     padding: '0.75rem',
-                    opacity: loading ? 0.7 : 1,
-                    cursor: loading ? 'default' : 'pointer'
+                    cursor: 'pointer'
                   }}
                 >
-                  {loading ? 'Iniciando…' : 'COMENZAR TORNEO'}
+                  COMENZAR TORNEO
                 </button>
               )}
             </div>

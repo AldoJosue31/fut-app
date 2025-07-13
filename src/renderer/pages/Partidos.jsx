@@ -511,8 +511,8 @@ function handleCloseResultModal() {
 }
 
 
-  return (
-    <div className="main" >
+    return (
+    <div className="main">
       <h1 className="title">Partidos</h1>
       <div className="tabs">
         {tabs.map(tab => (
@@ -529,7 +529,7 @@ function handleCloseResultModal() {
         <Torneos
           divisions={divisions}
           teamsByDiv={teamsByDiv}
-          tournamentTeams={tournamentTeams}      // ← nuevo
+          tournamentTeams={tournamentTeams}
           startedDivisions={startedDivisions}
           startDates={startDates}
           allTeams={allTeams}
@@ -537,9 +537,9 @@ function handleCloseResultModal() {
           season={season}
           seasons={seasons}
           handleStartDivision={handleStartDivision}
-          doubleRounds={doubleRounds}             // ← nuevo
-          setDoubleRounds={handleSetDouble}        // ← nuevo
-          loadingDivs={loadingDivs}                // ← nuevo
+          doubleRounds={doubleRounds}
+          setDoubleRounds={handleSetDouble}
+          loadingDivs={loadingDivs}
         />
       )}
       {activeTab === 'Jornadas' && (
@@ -585,18 +585,15 @@ function handleCloseResultModal() {
           onCloseResultModal={handleCloseResultModal}
           selectedMatchEntry={selectedMatchEntry}
           templateConfig={templateConfig[`${activeDiv}-${season}`]}
-  />
+        />
       )}
-          { /* ── Modal de Resultado ── */ }
-    {showResultModal && selectedMatchEntry && (
-      <ResultModal
-        entry={selectedMatchEntry}
-        onClose={handleCloseResultModal}
-        // aquí recuperamos la config para la división y la temporada actuales
-        config={templateConfig[`${activeDiv}-${season}`]}
-      />
-    )}
-
+      {showResultModal && selectedMatchEntry && (
+        <ResultModal
+          entry={selectedMatchEntry}
+          onClose={handleCloseResultModal}
+          config={templateConfig[`${activeDiv}-${season}`]}
+        />
+      )}
     </div>
   );
 }

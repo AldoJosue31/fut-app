@@ -995,3 +995,172 @@
   0%   { transform: translateX(0); }
   100% { transform: translateX(150%); }
 }
+
+/* ===============================
+   ConfigModal (tema oscuro)
+   =============================== */
+.config-modal .modal-overlay {
+  background: rgba(0,0,0,0.6);
+}
+
+.config-modal .modal-content {
+  background: #2A2A2A;                       /* mismo fondo que tus modales */
+  border: 1px solid rgba(255,255,255,0.2);   /* borde sutil */
+  box-shadow: 0 8px 30px rgba(0,0,0,0.7);
+  max-width: 800px;                          /* más ancho si quieres */
+  width: 90%;
+}
+
+/* Header */
+.config-modal__header {
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+.config-modal__header h2 {
+  color: #F3F4F6;
+}
+.config-modal__close {
+  color: #F3F4F6;
+}
+
+/* Tabs */
+.config-modal__tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+  margin-bottom: 1rem;
+}
+.config-modal__tabs .tab-btn {
+  flex: 1;
+  padding: 0.75rem;
+  background: #2A2A2A;
+  border: none;
+  color: #9CA3AF;
+  font-weight: 500;
+  cursor: pointer;
+}
+.config-modal__tabs .tab-btn:hover {
+  background: #3A3A3A;
+}
+.config-modal__tabs .tab-btn.active {
+  background: #1F1F1F;
+  border-bottom: 3px solid #16A34A;
+  color: #F3F4F6;
+}
+
+/* Body */
+.config-modal__body {
+  padding: 1rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Form-groups e inputs */
+.config-modal__body .form-group label {
+  color: #E5E7EB;
+}
+.config-modal__body .form-group input {
+  background: #1F1F1F;
+  color: #F3F4F6;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  width: 100%;
+  margin-top: 0.25rem;
+}
+.config-modal__body .form-group input:focus {
+  border-color: #16A34A;
+}
+
+/* División: lista y formulario */
+.divisions-tab .division-form {
+  display: flex;
+  gap: 0.75rem;
+}
+.division-form input {
+  background: #1F1F1F;
+  color: #F3F4F6;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 0.375rem;
+  flex: 1;
+  padding: 0.5rem;
+}
+.division-form .btn.success {
+  background: #16A34A;
+  color: #FFF;
+}
+.division-form .btn.success:hover {
+  background: #22C55E;
+}
+
+/* Tabla de divisiones */
+.divisions-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.divisions-table th {
+  background: #3A3A3A;
+  color: #9CA3AF;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  padding: 0.75rem 1rem;
+}
+.divisions-table td {
+  color: #E5E7EB;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid rgba(255,255,255,0.2);
+}
+.divisions-table tbody tr:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+/* Acciones de tabla */
+.divisions-table .btn.small {
+  background: #1F1F1F;
+  color: #F3F4F6;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+}
+.divisions-table .btn.small.danger {
+  background: #DC2626;
+  color: #FFF;
+}
+.divisions-table .btn.small.danger:hover {
+  background: #B91C1C;
+}
+
+/* Footer / acciones globales */
+.config-modal .modal-actions {
+  border-top: 1px solid rgba(255,255,255,0.2);
+  padding-top: 1rem;
+}
+.config-modal .modal-actions .btn.cancel {
+  background: #9CA3AF;
+  color: white;
+}
+.config-modal .modal-actions .btn.cancel:hover {
+  background: #B0B7C3;
+}
+.config-modal .modal-actions .btn.success {
+  background: #16A34A;
+  color: white;
+}
+.config-modal .modal-actions .btn.success:hover {
+  background: #22C55E;
+}
+
+/* Scrollbar oscuro en modal */
+.config-modal__body::-webkit-scrollbar {
+  width: 8px;
+}
+.config-modal__body::-webkit-scrollbar-track {
+  background: #2A2A2A;
+}
+.config-modal__body::-webkit-scrollbar-thumb {
+  background-color: #4A4A4A;
+  border-radius: 4px;
+  border: 2px solid #2A2A2A;
+}
