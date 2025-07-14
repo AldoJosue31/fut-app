@@ -1,6 +1,6 @@
 // src/renderer/pages/Jornadas.jsx
 import React, { useMemo } from 'react';
-
+import { getGlobalLineupConfig } from '../services/configService';
 
 export default function Jornadas({
   divisions,
@@ -26,6 +26,11 @@ export default function Jornadas({
   onCloseResultModal,
   selectedMatchEntry
 }) {
+    // 0b) Traemos la configuración global de titulares y suplentes
+  const [lineupConfig, setLineupConfig] = React.useState({ starters: 5, subs: 6 });
+  React.useEffect(() => {
+    getGlobalLineupConfig().then(setLineupConfig).catch(console.error);
+  }, []);
   // 0) Mapa id → equipo
   const teamMap = useMemo(
     () => Object.fromEntries(allTeams.map(t => [t.id, t])),
@@ -227,13 +232,15 @@ export default function Jornadas({
            }}
 onClick={() => {
   if (isConfirmed) {
-    onSelectMatch({
-      ...entryObj,
-      jornadaId: selectedJornada,
-      team1Name: teamMap[entryObj.pair.team1_id].name,
-      team2Name: teamMap[entryObj.pair.team2_id].name,
-      id: entryObj.id  // asegúrate de tener el id de la DB aquí
-    });
+            onSelectMatch({
+              ...entryObj,
+              jornadaId: selectedJornada,
+              team1Name: teamMap[entryObj.pair.team1_id].name,
+              team2Name: teamMap[entryObj.pair.team2_id].name,
+              id: entryObj.id,
+              // le pasamos aquí la configuración de plantillas
+              config: lineupConfig
+            });
   }
 }}
 

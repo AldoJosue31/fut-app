@@ -8,7 +8,8 @@ import {
   getDivisions,
   addDivision,
   updateDivision,
-  deleteDivision
+  deleteDivision,
+  hasActiveTournament
 } from '../services/divisionsService';
 
 export default function ConfigModal({ onClose }) {
@@ -84,25 +85,30 @@ export default function ConfigModal({ onClose }) {
       setLoadingDivs(false);
     }
   }
-
-  async function handleEditDivision(div) {
-    setDivName(div.name);
-    setEditingId(div.id);
-  }
-
-  async function handleDeleteDivision(id) {
-    if (!window.confirm('¿Seguro que quieres borrar esta división?')) return;
-    setLoadingDivs(true);
-    try {
-      await deleteDivision(id);
-      await fetchDivisions();
-    } catch (err) {
-      console.error(err);
-      alert('Error al borrar división');
-    } finally {
-      setLoadingDivs(false);
+async function handleDeleteDivision(id, name) {
+  setLoadingDivs(true);
+  try {
+    // 1) Compruebo si hay torneo activo en esa división
+    const occupied = await hasActiveTournament(name);
+    if (occupied) {
+      alert(`No se puede borrar la división "${name}" porque tiene un torneo activo.`);
+      return;
     }
+
+    // 2) Confirmación
+    const ok = window.confirm(`¿Seguro que quieres borrar la división "${name}"?`);
+    if (!ok) return;
+
+    // 3) Borro y refresco lista
+    await deleteDivision(id);
+    await fetchDivisions();
+  } catch (err) {
+    console.error(err);
+    alert('Error al borrar división');
+  } finally {
+    setLoadingDivs(false);
   }
+}
 
   return (
     <div className="modal-overlay">
@@ -192,13 +198,13 @@ export default function ConfigModal({ onClose }) {
                         >
                           Editar
                         </button>
-                        <button
-                          className="btn small danger"
-                          onClick={() => handleDeleteDivision(div.id)}
-                          disabled={loadingDivs}
-                        >
-                          Borrar
-                        </button>
+                               <button
+         className="btn small danger"
+         onClick={() => handleDeleteDivision(div.id, div.name)}
+         disabled={loadingDivs}
+       >
+         Borrar
+       </button>
                       </td>
                     </tr>
                   ))}

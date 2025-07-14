@@ -274,9 +274,15 @@ export default function Torneos({
                 <button
                   className="btn success"
                   disabled={loading}
-                  onClick={() =>
-                    handleStartDivision(div, startDates[div], !!doubleRounds[div])
-                  }
+                onClick={() =>
+                  // ahora pasamos también lineup (titulares y suplentes)
+  handleStartDivision(
+    div,
+    startDates[div],
+    !!doubleRounds[div],
+    { starters: lineup.starters, subs: lineup.subs }
+  )
+                }
                   style={{
                     background: '#16A34A',
                     color: '#FFF',
