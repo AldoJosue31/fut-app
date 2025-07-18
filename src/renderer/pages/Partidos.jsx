@@ -9,7 +9,7 @@ import { createMatch, getMatchesByJornada } from '../services/matchesService.js'
 import { getJornadas, addJornada, isTorneoComenzado } from '../services/jornadasService.js';
 import { getGlobalLineupConfig } from '../services/configService.js';
 import { getDivisions } from '../services/divisionsService.js';
-import { getTournamentTeams, addTournamentTeams } from '../services/tournamentService';
+import { getTournamentTeams, addTournamentTeams, startDivision } from '../services/tournamentService';
 import { supabase } from '../supabaseClient.js';
 import ResultModal from '../components/ResultModal.jsx';
 
@@ -219,14 +219,15 @@ async function handleStartDivision(div, startDate, isDouble = false) {
 
     let tournamentId;
     try {
-      // 1) Crear torneo
-      const { data: tour, error: tourError } = await supabase
-        .from('tournaments')
-        .insert([{ name: `${div} - ${season}`, start_date: startDate, end_date: null }])
-        .select('id')
-        .single();
-      if (tourError) throw tourError;
-      tournamentId = tour.id;
+  // ── 1) Crear o actualizar torneo con toda la config ──
+  //     startDivision inserta division, season, starters y subs de una sola vez
+  const { id: tournamentId } = await startDivision(
+    div,
+    season,
+    startDate,
+    isDouble,
+    cfg
+  );
 
       // 2) Snapshot de equipos y tournament_teams
       const teamIds = equipos.map(t => t.id);
@@ -499,7 +500,9 @@ function handleSelectMatch(entryObj) {
     ...entryObj,
     id: found.id,
     team1Name: teamMap[entryObj.pair.team1_id].name,
-    team2Name: teamMap[entryObj.pair.team2_id].name
+    team2Name: teamMap[entryObj.pair.team2_id].name,
+        // ahora usa la config que trajo cada partido:
+    config:    found.config
   });
   setShowResultModal(true);
 }
@@ -591,7 +594,7 @@ function handleCloseResultModal() {
         <ResultModal
           entry={selectedMatchEntry}
           onClose={handleCloseResultModal}
-          config={templateConfig[`${activeDiv}-${season}`]}
+          config={selectedMatchEntry.config}
         />
       )}
     </div>

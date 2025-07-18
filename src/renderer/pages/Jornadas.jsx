@@ -239,7 +239,7 @@ onClick={() => {
               team2Name: teamMap[entryObj.pair.team2_id].name,
               id: entryObj.id,
               // le pasamos aquí la configuración de plantillas
-              config: lineupConfig
+              config:    entryObj.config ?? lineupConfig
             });
   }
 }}

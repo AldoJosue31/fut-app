@@ -15,36 +15,48 @@ import { supabase, ensureOnline } from '../supabaseClient';
    division,
    season,
    startDate,
-   doubleRound,
    config
  ) {
    ensureOnline();
   // Aquí ibas a insertar en tournament_teams; ahora lo haremos en `tournaments`
   // Guardamos en la tabla `tournaments` la configuración completa:
-   const payload = {
-     division,
-     season,
-     start_date : startDate,
-     double_round: doubleRound,
-    starters   : config.starters,
-    subs        : config.subs
-   };
-   const { data, error } = await supabase
-     .from('tournaments')
-     .upsert(payload, { onConflict: ['division','season'] });
-   if (error) throw error;
-   return data;
+  // 1) Upsert en `tournaments`, devolviendo el ID para usarlo si lo necesitas
+  const payload = {
+    // nombre legible del torneo
+    name:         `${division} - ${season}`,
+    division,
+    season,
+    start_date:   startDate,
+    starters:     config.starters,
+    subs:         config.subs
+  };
+  const { data: tour, error: tourError } = await supabase
+    .from('tournaments')
+    .upsert(payload, { onConflict: ['division','season'] })
+    .select('id')
+    .single();
+  if (tourError) throw tourError;
+  // opcional: si luego necesitas el ID:
+  const tournamentId = tour.id;
+
+  // ... aquí sigues con snapshot de equipos, creación de jornadas, etc.
+  // y, si quieres, devuelves tournamentId:
+  return { id: tournamentId };
  }
   export async function getTournamentConfig(division, season) {
    ensureOnline();
-   const { data, error } = await supabase
-     .from('tournaments')
-     .select('starters,subs')
-     .eq('division', division)
-     .eq('season', season)
-     .single();
+  const { data, error } = await supabase
+    .from('tournaments')
+    .select('starters,subs')
+    .eq('division', division)
+    .eq('season', season)
+    .maybeSingle();   // NO rompe si no hay filas
    if (error) throw error;
-   return { starters: data.starters, subs: data.subs };
+     if (!data) {
+    // si no hay torneo guardado, usamos la config global
+    return getGlobalLineupConfig();
+  }
+  return { starters: data.starters, subs: data.subs };
  }
 
 // Obtener equipos que forman parte de un torneo (por división y temporada)

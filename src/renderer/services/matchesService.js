@@ -1,5 +1,6 @@
 // src/services/matchesService.js
 import { supabase, ensureOnline } from '../supabaseClient.js';
+import { getTournamentConfig } from './tournamentService.js';
 
 /**
  * Crea un partido asociado a una jornada concreta.
@@ -68,15 +69,38 @@ export async function getMatchesByJornada(jornadaId) {
     return [];
   }
 
-  const { data, error } = await supabase
+  // 1) Leemos división y temporada de la jornada
+  const { data: jornada, error: errJ } = await supabase
+    .from('jornadas')
+    .select('division,season')
+    .eq('id', jornadaId)
+    .single();
+  if (errJ) throw errJ;
+
+  // 2) Intentamos leer la config; si falla, usamos fallback
+  let starters = 5, subs = 6;
+  try {
+    const cfg = await getTournamentConfig(jornada.division, jornada.season);
+    starters = cfg.starters;
+    subs     = cfg.subs;
+  } catch (err) {
+    console.warn('No se pudo leer config del torneo, usando global/fallback', err);
+  }
+
+  // 3) Leemos los partidos sin hacer JOIN directo
+  const { data: matches, error: errM } = await supabase
     .from('matches')
     .select('*')
     .eq('jornada_id', jornadaId)
     .order('date', { ascending: true });
+  if (errM) throw errM;
 
-  if (error) throw error;
-  return data;
-}
+  // 4) Devolvemos con config incorporada
+  return matches.map(m => ({
+    ...m,
+    config: { starters, subs }
+  }));
+ }
 
 /**
  * Actualiza el resultado de un partido ya creado.

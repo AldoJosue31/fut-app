@@ -13,8 +13,8 @@ export default function ResultModal({ entry, onClose, config }) {
   } = entry;
 
   // Extraemos de config o usamos valores por defecto
-  const numStarters = config?.starters ?? 5;
-  const numSubs     = config?.subs     ?? 6;
+  const numStarters = config.starters;
+  const numSubs     = config.subs;
 
   // Creación dinámica de arrays vacíos
   const emptySlots = count =>
