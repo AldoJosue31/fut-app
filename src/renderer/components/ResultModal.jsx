@@ -27,17 +27,25 @@ export default function ResultModal({ entry, onClose, config }) {
   const [players2, setPlayers2] = useState([]);
   const [referee, setReferee]   = useState('');
 
-  // Estados de plantillas, inicializados una sola vez con la cantidad correcta
-  const [starters1, setStarters1] = useState(() => emptySlots(numStarters));
-  const [subs1,      setSubs1]      = useState(() => emptySlots(numSubs));
-  const [starters2, setStarters2] = useState(() => emptySlots(numStarters));
-  const [subs2,      setSubs2]      = useState(() => emptySlots(numSubs));
+  // Estados de plantillas: empezamos vacíos y los rellenamos en useEffect
+  const [starters1, setStarters1] = useState([]);
+  const [subs1,      setSubs1]      = useState([]);
+  const [starters2, setStarters2] = useState([]);
+  const [subs2,      setSubs2]      = useState([]);
 
   // Carga de jugadores en mount
   useEffect(() => {
     getPlayersByTeam(team1_id).then(setPlayers1);
     getPlayersByTeam(team2_id).then(setPlayers2);
   }, [team1_id, team2_id]);
+
+    // Cada vez que cambie el partido o la config, reinicializamos los slots
+  useEffect(() => {
+    setStarters1(emptySlots(numStarters));
+    setSubs1     (emptySlots(numSubs));
+    setStarters2(emptySlots(numStarters));
+    setSubs2     (emptySlots(numSubs));
+  }, [numStarters, numSubs, matchId]);
 
   // Actualiza un slot concreto
   function updateSlot(team, type, idx, field, value) {

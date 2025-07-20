@@ -163,6 +163,16 @@ const [showResultModal, setShowResultModal] = useState(false);
       getTournamentTeams(activeDiv, season).then(tt => setTournamentTeams(tt.map(x => x.team_id)));
       const sch = JSON.parse(localStorage.getItem(`${activeDiv}-${season}`) || 'null');
       if (sch) setScheduledMatches(prev => ({ ...prev, [`${activeDiv}-${season}`]: sch }));
+
+    // 2) Cada vez que cambias división o temporada, recarga también su config:
+    if (startedDivisions[ activeDiv ]) {
+      getTournamentConfig(activeDiv, season).then(tc => {
+        setTemplateConfig(prev => ({
+          ...prev,
+          [`${activeDiv}-${season}`]: tc
+        }));
+      }).catch(console.error);
+    }
     }
   }, [activeTab, activeDiv, allJornadas, season]);
 
@@ -213,21 +223,14 @@ async function handleStartDivision(div, startDate, isDouble = false) {
      [key]: { starters: cfg.starters, subs: cfg.subs }
    }));
 
-    // ── Leer configuración de plantilla antes de crear el torneo ──
-    const starters = parseInt(localStorage.getItem('numStarters'), 10) || 5;
-    const subs     = parseInt(localStorage.getItem('numSubs'), 10)     || 6;
 
     let tournamentId;
     try {
   // ── 1) Crear o actualizar torneo con toda la config ──
   //     startDivision inserta division, season, starters y subs de una sola vez
-  const { id: tournamentId } = await startDivision(
-    div,
-    season,
-    startDate,
-    isDouble,
-    cfg
-  );
+ // Ahora startDivision nos devuelve { id, starters, subs }
+ const tour = await startDivision(div, season, startDate, isDouble, cfg);
+ const tournamentId = tour.id;
 
       // 2) Snapshot de equipos y tournament_teams
       const teamIds = equipos.map(t => t.id);
@@ -252,11 +255,14 @@ async function handleStartDivision(div, startDate, isDouble = false) {
         await addJornada(`Jornada ${i + 1}`, div, season);
       }
 
-      // 6) Capturar la configuración de plantillas PARA ESTE torneo
-      setTemplateConfig(prev => ({
-        ...prev,
-        [`${div}-${season}`]: { starters, subs }
-      }));
+ // 6) Capturar la configuración DE ESTE torneo, desde lo devuelto por la API
+ setTemplateConfig(prev => ({
+   ...prev,
+   [`${div}-${season}`]: {
+     starters: tour.starters,
+     subs:     tour.subs
+   }
+ }));
 
       // 7) Refrescar vistas
       const allJ = await getJornadas();

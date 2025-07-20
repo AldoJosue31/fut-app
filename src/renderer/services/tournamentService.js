@@ -30,18 +30,16 @@ import { supabase, ensureOnline } from '../supabaseClient';
     starters:     config.starters,
     subs:         config.subs
   };
+  // Le pedimos que nos devuelva id, starters y subs
   const { data: tour, error: tourError } = await supabase
     .from('tournaments')
     .upsert(payload, { onConflict: ['division','season'] })
-    .select('id')
+    .select('id, starters, subs')
     .single();
   if (tourError) throw tourError;
   // opcional: si luego necesitas el ID:
-  const tournamentId = tour.id;
-
-  // ... aquí sigues con snapshot de equipos, creación de jornadas, etc.
-  // y, si quieres, devuelves tournamentId:
-  return { id: tournamentId };
+  // Ahora `tour` tiene { id, starters, subs }
+  return tour;
  }
   export async function getTournamentConfig(division, season) {
    ensureOnline();

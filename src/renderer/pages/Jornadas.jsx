@@ -24,7 +24,7 @@ export default function Jornadas({
   onSelectMatch,
   showResultModal,
   onCloseResultModal,
-  selectedMatchEntry
+  selectedMatchEntry, templateConfig
 }) {
     // 0b) Traemos la configuración global de titulares y suplentes
   const [lineupConfig, setLineupConfig] = React.useState({ starters: 5, subs: 6 });
@@ -239,7 +239,7 @@ onClick={() => {
               team2Name: teamMap[entryObj.pair.team2_id].name,
               id: entryObj.id,
               // le pasamos aquí la configuración de plantillas
-              config:    entryObj.config ?? lineupConfig
+              config: templateConfig
             });
   }
 }}
