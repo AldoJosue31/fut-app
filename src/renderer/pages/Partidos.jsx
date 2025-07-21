@@ -9,7 +9,7 @@ import { createMatch, getMatchesByJornada } from '../services/matchesService.js'
 import { getJornadas, addJornada, isTorneoComenzado } from '../services/jornadasService.js';
 import { getGlobalLineupConfig } from '../services/configService.js';
 import { getDivisions } from '../services/divisionsService.js';
-import { getTournamentTeams, addTournamentTeams, startDivision } from '../services/tournamentService';
+import { getTournamentTeams, addTournamentTeams, startDivision, getTournamentConfig } from '../services/tournamentService';
 import { supabase } from '../supabaseClient.js';
 import ResultModal from '../components/ResultModal.jsx';
 
@@ -91,10 +91,19 @@ const [showResultModal, setShowResultModal] = useState(false);
 
       const allJ = await getJornadas();
       setAllJornadas(allJ);
-      setStartedDivisions(Object.fromEntries(
+      const started = Object.fromEntries(
         allJ.filter(j => j.season === season).map(j => [j.division, true])
-      ));
+      );
+      setStartedDivisions(started);
 
+      // Si ya había un torneo para la primera división, carga su config:
+      if (started[divNames[0]]) {
+        const tc = await getTournamentConfig(divNames[0], season);
+        setTemplateConfig(prev => ({
+          ...prev,
+          [`${divNames[0]}-${season}`]: tc
+        }));
+      }
       const firstJ = allJ.filter(j => j.division === divNames[0] && j.season === season);
       setJornadas(firstJ);
       setSelectedJornada(firstJ[0]?.id || null);
@@ -173,6 +182,17 @@ const [showResultModal, setShowResultModal] = useState(false);
         }));
       }).catch(console.error);
     }
+
+    // ── 3) Cada vez que cambias división/temporada, recarga también su configuración de starters/subs ──
+    if (startedDivisions[activeDiv]) {
+      getTournamentConfig(activeDiv, season)
+        .then(tc => setTemplateConfig(prev => ({
+          ...prev,
+          [`${activeDiv}-${season}`]: tc
+        })))
+        .catch(console.error);
+    }
+
     }
   }, [activeTab, activeDiv, allJornadas, season]);
 
@@ -424,6 +444,10 @@ async function handleConfirmJornada() {
       });
     }
     setConfirmedJornadas(prev => ({ ...prev, [key]: true }));
+       // ── ¡NUEVO! ──
+   // Recargamos los partidos recién creados para que matches esté al día
+   const nuevos = await getMatchesByJornada(selectedJornada);
+   setMatches(nuevos);
     alert('Jornada confirmada y partidos guardados.');
   } catch (err) {
     console.error(err);

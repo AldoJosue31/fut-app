@@ -88,12 +88,12 @@ export default function ResultModal({ entry, onClose, config }) {
       ...subs2    .map(s => ({ ...s, team: 2, role: 'sub'     }))
     ].filter(s => s.playerId);
 
-    await updateMatchResult({
-      matchId,
-      goals1, goals2,
-      lineup,
-      referee
-    });
+ await updateMatchResult({
+   matchId,
+   goals1,
+   goals2,
+   playerGoalsInput: lineup
+ });
     onClose();
   }
 

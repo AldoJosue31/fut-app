@@ -11,12 +11,13 @@ import { supabase, ensureOnline } from '../supabaseClient';
  * @param {{starters:number, subs:number}} config
  */
 
- export async function startDivision(
-   division,
-   season,
-   startDate,
-   config
- ) {
+export async function startDivision(
+  division,
+  season,
+  startDate,
+  doubleRound,            // ← nuevo
+  config
+) {
    ensureOnline();
   // Aquí ibas a insertar en tournament_teams; ahora lo haremos en `tournaments`
   // Guardamos en la tabla `tournaments` la configuración completa:
@@ -27,8 +28,10 @@ import { supabase, ensureOnline } from '../supabaseClient';
     division,
     season,
     start_date:   startDate,
+    double_round: doubleRound,   // ← incluimos el flag en la tabla
     starters:     config.starters,
     subs:         config.subs
+
   };
   // Le pedimos que nos devuelva id, starters y subs
   const { data: tour, error: tourError } = await supabase

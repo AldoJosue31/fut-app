@@ -1,7 +1,9 @@
+// src/renderer/pages/Clasificacion.jsx
 import React, { useState, useEffect } from 'react';
 import '../styles/styles.css';
-import { getTeams, getTeamStats } from '../services/teamsService.js';
+import { getStandings } from '../services/standingsService.js';
 import { getPlayersByTeam, getPlayerStats } from '../services/playersService.js';
+import { getTeams } from '../services/teamsService.js';
 
 const tabs = ['Tabla', 'Jornadas', 'Goleadores'];
 
@@ -11,40 +13,41 @@ export default function Clasificacion() {
   const [goleadoresData, setGoleadoresData] = useState([]);
   const [currentJornada, setCurrentJornada] = useState(0);
 
-  // Función para obtener clasificación según división actual
+  // 1) Fetch clasificación (tabla de posiciones)
   async function fetchClassification() {
     try {
-      const teams = await getTeams();
       const division = localStorage.getItem('division') || 'Primera';
-      const filtered = teams.filter(t => t.division === division);
-      const formatted = await Promise.all(
-        filtered.map(async team => {
-          const stats = await getTeamStats(team.id);
-          const PJ = (stats.total_wins || 0) + (stats.total_draws || 0) + (stats.total_losses || 0);
-          const G = stats.total_wins || 0;
-          const E = stats.total_draws || 0;
-          const P = stats.total_losses || 0;
-          const PTS = G * 3 + E;
-          return {
-            id: team.id,
-            name: team.name,
-            stats: { PJ, G, E, P, GF: 0, GC: 0, DG: 0, PTS },
-          };
-        })
-      );
-      formatted.sort((a, b) => b.stats.PTS - a.stats.PTS);
-      setClassificationData(formatted);
+      const season   = localStorage.getItem('season')   || 'Apertura 2025';
+      const standings = await getStandings(division, season);
+
+      if (standings.length === 0) {
+        // Si no hay datos: torneo no iniciado o sin partidos
+        // => todos los equipos activos con cero en todo
+        const teams = await getTeams();
+        const filtered = teams.filter(
+          t => t.division === division && t.status === 'Activo'
+        );
+        const zeros = filtered.map(t => ({
+          id: t.id,
+          name: t.name,
+          stats: { PJ:0, G:0, E:0, P:0, GF:0, GC:0, DG:0, PTS:0 }
+        }));
+        setClassificationData(zeros);
+      } else {
+        setClassificationData(standings);
+      }
     } catch (error) {
       console.error('Error fetching classification:', error);
     }
   }
 
-  // Función para obtener goleadores según división actual
+  // 2) Fetch goleadores
   async function fetchGoleadores() {
     try {
-      const teams = await getTeams();
       const division = localStorage.getItem('division') || 'Primera';
+      const teams = await getTeams();
       const filtered = teams.filter(t => t.division === division);
+
       const playersList = [];
       for (const team of filtered) {
         const players = await getPlayersByTeam(team.id);
@@ -57,13 +60,15 @@ export default function Clasificacion() {
             totalGoals = 0;
           }
           playersList.push({
-            id: jug.id,
-            name: `${jug.nombre} ${jug.apellido}`,
-            team: team.name,
-            goals: totalGoals,
+            id:    jug.id,
+            name:  `${jug.nombre} ${jug.apellido}`,
+            team:  team.name,
+            goals: totalGoals
           });
         }
       }
+
+      // Orden descendente por goles
       playersList.sort((a, b) => b.goals - a.goals);
       setGoleadoresData(playersList);
     } catch (error) {
@@ -71,7 +76,7 @@ export default function Clasificacion() {
     }
   }
 
-  // Ejecutar al montar y al cambiar división
+  // Montaje y escucha de cambio de división
   useEffect(() => {
     fetchClassification();
     window.addEventListener('divisionChange', fetchClassification);
@@ -97,7 +102,7 @@ export default function Clasificacion() {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={activeTab === tab ? 'tab active-tab' : 'tab'}
-              disabled={tab === 'Jornadas'} // Jornadas sin datos reales
+              disabled={tab === 'Jornadas'} // Todavía sin datos de jornadas
             >
               {tab}
             </button>
@@ -145,7 +150,7 @@ export default function Clasificacion() {
           </div>
         )}
 
-        {/* TAB: Jornadas (sin datos reales) */}
+        {/* TAB: Jornadas (placeholder) */}
         {activeTab === 'Jornadas' && (
           <div className="jornadas-section">
             <div className="jornadas-nav">
