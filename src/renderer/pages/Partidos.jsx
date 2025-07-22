@@ -1,4 +1,4 @@
-// src/renderer/pages/Partidos.jsx
+// IMPORTS AL PRINCIPIO DEL FICHERO
 import React, { useState, useEffect } from 'react';
 import '../styles/styles.css';
 import Torneos from './Torneos';
@@ -9,9 +9,18 @@ import { createMatch, getMatchesByJornada } from '../services/matchesService.js'
 import { getJornadas, addJornada, isTorneoComenzado } from '../services/jornadasService.js';
 import { getGlobalLineupConfig } from '../services/configService.js';
 import { getDivisions } from '../services/divisionsService.js';
-import { getTournamentTeams, addTournamentTeams, startDivision, getTournamentConfig } from '../services/tournamentService';
+
+import {
+  startDivision,
+  addTournamentTeams,
+  getTournamentTeams,
+  getTournamentConfig
+} from '../services/tournamentService.js';
+
 import { supabase } from '../supabaseClient.js';
 import ResultModal from '../components/ResultModal.jsx';
+
+
 
 const tabs = ['Torneos', 'Jornadas'];
 const years = Array.from({ length: 6 }, (_, i) => 2025 + i);
@@ -196,8 +205,10 @@ const [showResultModal, setShowResultModal] = useState(false);
     }
   }, [activeTab, activeDiv, allJornadas, season]);
 
-  // Lógica para iniciar torneo
-async function handleStartDivision(div, startDate, isDouble = false) {
+
+// ... tus otros imports
+
+  async function handleStartDivision(div, startDate, isDouble = false) {
     if (!startDate) {
       return alert('Debes seleccionar fecha de inicio antes de iniciar el torneo.');
     }
@@ -209,54 +220,32 @@ async function handleStartDivision(div, startDate, isDouble = false) {
       return alert(`Ya existe un torneo iniciado para ${div} en ${season}.`);
     }
 
-    // ── Evitar iniciar dos torneos simultáneos ──
-    const { data: ttData, error: ttError } = await supabase
-      .from('tournament_teams')
-      .select('id')
-      .eq('division', div)
-      .eq('season', season)
-      .limit(1);
-    if (ttError) {
-      console.error('Error comprobando torneo existente:', ttError);
-      return alert('No se pudo verificar si ya existe un torneo.');
-    }
-    if (ttData.length > 0) {
-      return alert(`Ya hay un torneo activo de la división ${div} en ${season}.`);
-    }
-
-    // ── Bloquear doble click ──
     setLoadingDivs(prev => ({ ...prev, [div]: true }));
 
-   // ── Leer configuración de plantilla DESDE LA DB ──
-   let cfg;
-   try {
-     cfg = await getGlobalLineupConfig();
-   } catch (err) {
-     console.error('No se pudo leer configuración de plantilla, usando 5/6 por defecto', err);
-     cfg = { starters: 5, subs: 6 };
-   }
-
-   // ── Guardar esa config en el estado con clave división-temporada ──
-   const key = `${div}-${season}`;
-   setTemplateConfig(prev => ({
-     ...prev,
-     [key]: { starters: cfg.starters, subs: cfg.subs }
-   }));
-
-
-    let tournamentId;
+    let cfg;
     try {
-  // ── 1) Crear o actualizar torneo con toda la config ──
-  //     startDivision inserta division, season, starters y subs de una sola vez
- // Ahora startDivision nos devuelve { id, starters, subs }
- const tour = await startDivision(div, season, startDate, isDouble, cfg);
- const tournamentId = tour.id;
+      cfg = await getGlobalLineupConfig();
+    } catch (err) {
+      console.error('Error leyendo config global:', err);
+      cfg = { starters: 5, subs: 6 };
+    }
 
-      // 2) Snapshot de equipos y tournament_teams
+    const key = `${div}-${season}`;
+    setTemplateConfig(prev => ({
+      ...prev,
+      [key]: { starters: cfg.starters, subs: cfg.subs }
+    }));
+
+    try {
+      // 1) Crear/actualizar torneo y obtener su id
+      const tour = await startDivision(div, season, startDate, isDouble, cfg);
+      const tournamentId = tour.id;
+
+      // 2) Snapshot de equipos + stats iniciales
       const teamIds = equipos.map(t => t.id);
       await addTournamentTeams(div, season, teamIds, tournamentId);
 
-      // 3) Generar rondas
+      // 3) Generar y guardar rondas...
       let rounds = roundRobin(equipos);
       if (isDouble) {
         const reversed = rounds.map(pairs =>
@@ -264,29 +253,18 @@ async function handleStartDivision(div, startDate, isDouble = false) {
         );
         rounds = [...rounds, ...reversed];
       }
-
-      // 4) Guardar schedule
       const schedKey = `${div}-${season}`;
       localStorage.setItem(`schedule-${schedKey}`, JSON.stringify(rounds));
       setScheduledMatches(prev => ({ ...prev, [schedKey]: rounds }));
 
-      // 5) Crear jornadas en la BD
+      // 4) Crear jornadas en BD
       for (let i = 0; i < rounds.length; i++) {
         await addJornada(`Jornada ${i + 1}`, div, season);
       }
 
- // 6) Capturar la configuración DE ESTE torneo, desde lo devuelto por la API
- setTemplateConfig(prev => ({
-   ...prev,
-   [`${div}-${season}`]: {
-     starters: tour.starters,
-     subs:     tour.subs
-   }
- }));
-
-      // 7) Refrescar vistas
+      // 5) Refrescar vistas
       const allJ = await getJornadas();
-      const js = allJ.filter(j => j.division === div && j.season === season);
+      const js   = allJ.filter(j => j.division === div && j.season === season);
       setJornadas(js);
       setSelectedJornada(js[0]?.id || null);
       setStartedDivisions(prev => ({ ...prev, [div]: true }));
@@ -301,6 +279,7 @@ async function handleStartDivision(div, startDate, isDouble = false) {
       setLoadingDivs(prev => ({ ...prev, [div]: false }));
     }
   }
+
 
   // Carga de partidos y jugadores
  useEffect(() => {

@@ -1,94 +1,69 @@
-import { supabase, ensureOnline } from '../supabaseClient';
+import { supabase, ensureOnline } from '../supabaseClient.js';
+import { getGlobalLineupConfig } from './configService.js'; // para el fallback
 
-/**
- * Inicia (o actualiza) un torneo/división: guarda fecha, doble vuelta
- * y la configuración de titulares/subs en la tabla `tournaments`.
- *
- * @param {string} division
- * @param {string} season
- * @param {string} startDate   // 'YYYY-MM-DD'
- * @param {boolean} doubleRound
- * @param {{starters:number, subs:number}} config
- */
-
-export async function startDivision(
-  division,
-  season,
-  startDate,
-  doubleRound,            // ← nuevo
-  config
-) {
-   ensureOnline();
-  // Aquí ibas a insertar en tournament_teams; ahora lo haremos en `tournaments`
-  // Guardamos en la tabla `tournaments` la configuración completa:
-  // 1) Upsert en `tournaments`, devolviendo el ID para usarlo si lo necesitas
+export async function startDivision(division, season, startDate, doubleRound, config) {
+  ensureOnline();
   const payload = {
-    // nombre legible del torneo
     name:         `${division} - ${season}`,
     division,
     season,
     start_date:   startDate,
-    double_round: doubleRound,   // ← incluimos el flag en la tabla
+    double_round: doubleRound,
     starters:     config.starters,
     subs:         config.subs
-
   };
-  // Le pedimos que nos devuelva id, starters y subs
   const { data: tour, error: tourError } = await supabase
     .from('tournaments')
     .upsert(payload, { onConflict: ['division','season'] })
     .select('id, starters, subs')
     .single();
   if (tourError) throw tourError;
-  // opcional: si luego necesitas el ID:
-  // Ahora `tour` tiene { id, starters, subs }
   return tour;
- }
-  export async function getTournamentConfig(division, season) {
-   ensureOnline();
+}
+
+export async function getTournamentConfig(division, season) {
+  ensureOnline();
   const { data, error } = await supabase
     .from('tournaments')
     .select('starters,subs')
     .eq('division', division)
-    .eq('season', season)
-    .maybeSingle();   // NO rompe si no hay filas
-   if (error) throw error;
-     if (!data) {
-    // si no hay torneo guardado, usamos la config global
+    .eq('season',   season)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) {
     return getGlobalLineupConfig();
   }
   return { starters: data.starters, subs: data.subs };
- }
+}
 
-// Obtener equipos que forman parte de un torneo (por división y temporada)
+export async function addTournamentTeams(division, season, teamIds, tournamentId) {
+  ensureOnline();
+  if (!teamIds?.length) return;
+  // insertar en tournament_teams
+  const rowsTT = teamIds.map(id => ({ division, season, team_id: id }));
+  const { error: e1 } = await supabase.from('tournament_teams').insert(rowsTT);
+  if (e1) throw e1;
+  // inicializar stats
+  const rowsStats = teamIds.map(team_id => ({
+    tournament_id: tournamentId,
+    team_id,
+    wins:   0, draws: 0, losses: 0, gf: 0, gc: 0
+  }));
+  const { error: e2 } = await supabase.from('team_tournament_stats').insert(rowsStats);
+  if (e2) console.error('No se pudieron inicializar stats:', e2);
+}
+
+/**
+ * Recupera los equipos YA snapshot de un torneo en curso.
+ */
 export async function getTournamentTeams(division, season) {
-  ensureOnline(); // Lanza error si no hay conexión
+  ensureOnline();
   const { data, error } = await supabase
     .from('tournament_teams')
     .select('team_id')
     .eq('division', division)
-    .eq('season', season);
+    .eq('season',   season);
   if (error) throw error;
-  // Devuelve un array de objetos { team_id }
+  // devuelve [{ team_id: 1 },…]
   return data;
-}
-
-// Insertar varios equipos en un torneo (snapshot)
-export async function addTournamentTeams(division, season, teamIds) {
-  ensureOnline(); // Lanza error si no hay conexión
-  if (!teamIds || teamIds.length === 0) return;
-  const rows = teamIds.map(id => ({ division, season, team_id: id }));
-  const { error } = await supabase
-    .from('tournament_teams')
-    .insert(rows);
-  if (error) throw error;
-}
-
-export async function deleteTournamentTeamsByTeam(teamId) {
-  ensureOnline(); // Lanza error si no hay conexión
-  const { error } = await supabase
-    .from('tournament_teams')
-    .delete()
-    .eq('team_id', teamId);
-  if (error) throw error;
 }

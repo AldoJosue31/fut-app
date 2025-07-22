@@ -96,7 +96,7 @@ export async function updateMatchResult({
 }) {
   ensureOnline();
 
-  // 1) Actualizamos únicamente goles *y* pedimos que nos devuelva la fila actualizada
+  // 1) Actualizamos únicamente goles y devolvemos la fila actualizada
   const { data: updated, error: updErr } = await supabase
     .from('matches')
     .update({ goals1, goals2 })
@@ -106,7 +106,6 @@ export async function updateMatchResult({
   if (updErr) throw updErr;
 
   // 2) Reemplazamos los registros de player_goals
-  //    (si no tienes columna referee ni tarjetas, no las toques)
   await supabase
     .from('player_goals')
     .delete()
@@ -122,6 +121,52 @@ export async function updateMatchResult({
       .from('player_goals')
       .insert(rows);
     if (pgErr) console.error('Error registrando goles por jugador:', pgErr);
+  }
+
+  // —————————————————————————
+  // 3) Incrementar team_tournament_stats vía RPC
+  // —————————————————————————
+
+  // 3.1) Obtener división y temporada de la jornada
+  const { data: jr, error: errJr } = await supabase
+    .from('jornadas')
+    .select('division,season')
+    .eq('id', updated.jornada_id)
+    .single();
+  if (errJr) console.error(errJr);
+
+  // 3.2) Obtener el torneo activo
+  const { data: tour, error: errT } = await supabase
+    .from('tournaments')
+    .select('id')
+    .eq('division', jr.division)
+    .eq('season',   jr.season)
+    .single();
+  if (errT) console.error(errT);
+  const tournamentId = tour.id;
+
+  // 3.3) Decidir columna a incrementar
+  let res1, res2;
+  if (goals1 > goals2)      { res1 = 'wins';   res2 = 'losses'; }
+  else if (goals1 < goals2) { res1 = 'losses'; res2 = 'wins';   }
+  else                      { res1 = res2 = 'draws';            }
+
+  // 3.4) Llamar al RPC para cada equipo
+  for (const [teamId, resultCol, gf, gc] of [
+    [updated.team1_id, res1, goals1, goals2],
+    [updated.team2_id, res2, goals2, goals1]
+  ]) {
+    const { error: statsErr } = await supabase.rpc(
+      'increment_team_tournament_stats',
+      {
+        p_team_id:       teamId,
+        p_tournament_id: tournamentId,
+        p_result_column: resultCol,
+        p_goals_for:     gf,
+        p_goals_against: gc
+      }
+    );
+    if (statsErr) console.error('Error actualizando stats:', statsErr);
   }
 
   return updated;
