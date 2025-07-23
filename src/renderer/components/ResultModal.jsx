@@ -8,8 +8,15 @@ export default function ResultModal({ entry, onClose, config }) {
   const {
     pair: { team1_id, team2_id },
     team1Name, team2Name,
-    id: matchId
+    id: matchId,
+    // estos vienen ahora en entry
+    goals1: initialGoals1,
+    goals2: initialGoals2,
+    referee: initialReferee,
+    lineup:   initialLineup
   } = entry;
+
+
 
   const numStarters = config.starters;
   const numSubs     = config.subs;
@@ -17,14 +24,16 @@ export default function ResultModal({ entry, onClose, config }) {
   const emptySlots = count =>
     Array.from({ length: count }, () => ({ playerId: '', goals: 0 }));
 
-  const [goals1, setGoals1]     = useState(0);
-  const [goals2, setGoals2]     = useState(0);
+  // 3) Inicializamos con los valores que vienen en entry
+  const [goals1,   setGoals1]   = useState(initialGoals1  || 0);
+  const [goals2,   setGoals2]   = useState(initialGoals2  || 0);
   const [players1, setPlayers1] = useState([]);
   const [players2, setPlayers2] = useState([]);
   const [starters1, setStarters1] = useState([]);
   const [subs1,      setSubs1]      = useState([]);
   const [starters2, setStarters2] = useState([]);
   const [subs2,      setSubs2]      = useState([]);
+  const [referee,  setReferee]    = useState(initialReferee || '');  // ← ya estaba, solo nos aseguramos de usarlo
   const [error, setError]       = useState('');
 
   useEffect(() => {
@@ -33,10 +42,20 @@ export default function ResultModal({ entry, onClose, config }) {
   }, [team1_id, team2_id]);
 
   useEffect(() => {
+    // 1) slots vacíos por defecto
     setStarters1(emptySlots(numStarters));
     setSubs1     (emptySlots(numSubs));
     setStarters2(emptySlots(numStarters));
     setSubs2     (emptySlots(numSubs));
+    // 2) si hay lineup guardado, lo reaplico
+   initialLineup?.forEach((pl, idx) => {
+     const { playerId, goals, team, role } = pl;
+     // si no tenemos team o role, lo saltamos
+     if (team == null || role == null) return;
+     const type = role === 'starter' ? 'starters' : 'subs';
+     updateSlot(team, type, idx, 'playerId', playerId);
+     updateSlot(team, type, idx, 'goals',     goals);
+   });
   }, [numStarters, numSubs, matchId]);
 
   function updateSlot(team, type, idx, field, value) {
@@ -100,12 +119,15 @@ async function handleSave() {
       matchId,
       goals1,
       goals2,
-      playerGoalsInput: lineup
+      playerGoalsInput: lineup,
+      referee                  // ← enviamos referee
     });
     alert('✅ Resultado guardado correctamente.');
     // Disparar recarga de la tabla de clasificación
-    window.dispatchEvent(new Event('statsUpdated'));
-    onClose();
+   window.dispatchEvent(new CustomEvent('matchResultUpdated', {
+     detail: { matchId, goals1, goals2 }
+   }));
+onClose();
   } catch (err) {
     console.error('Error guardando resultado:', err);
     alert('❌ Error al guardar el resultado. Inténtalo de nuevo.');
@@ -171,6 +193,14 @@ async function handleSave() {
                 onChange={e => setGoals2(+e.target.value)}
               />
             </div>
+          </div>
+                    <div className="form-group">
+            <label>Árbitro:</label>
+            <input
+              type="text"
+              value={referee}
+              onChange={e => setReferee(e.target.value)}
+            />
           </div>
           <div className="teams-lineup">
             <div className="team-block">

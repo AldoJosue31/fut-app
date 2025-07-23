@@ -14,6 +14,7 @@ export default function Jornadas({
   allTeams,               // lista completa de equipos (activos e inactivos)
   scheduledMatches,
   tableSchedule,
+  setTableSchedule,
   confirmLoaded,
   confirmedJornadas,
   handleDrop,
@@ -105,6 +106,35 @@ export default function Jornadas({
   // helper para key
   const idOf = (p, origin) => `${p.team1_id}-${p.team2_id}-r${origin}`;
 
+    // → 3) Escuchar cambios de resultado de un partido
+  React.useEffect(() => {
+    function onResultUpdate(e) {
+      const { matchId, goals1, goals2 } = e.detail;
+      const tableKey = `${activeDiv}-${season}-${selectedJornada}`;
+      const curr = { ...(tableSchedule[tableKey] || {}) };
+      let changed = false;
+
+      // buscamos la celda cuyo cell.id sea el matchId y actualizamos su .result
+      for (const cellKey of Object.keys(curr)) {
+        const cell = curr[cellKey];
+        if (cell.id === matchId) {
+          curr[cellKey] = {
+            ...cell,
+            result: { goals1, goals2 }
+          };
+          changed = true;
+          break;
+        }
+      }
+      if (changed) {
+        localStorage.setItem(`table-${tableKey}`, JSON.stringify(curr));
+        setTableSchedule(prev => ({ ...prev, [tableKey]: curr }));
+      }
+    }
+
+    window.addEventListener('matchResultUpdated', onResultUpdate);
+    return () => window.removeEventListener('matchResultUpdated', onResultUpdate);
+  }, [activeDiv, season, selectedJornada, tableSchedule]);
   return (
     <>
       {/* División selector */}
@@ -230,23 +260,27 @@ export default function Jornadas({
                );
              }
            }}
-onClick={() => {
-  if (isConfirmed) {
-            onSelectMatch({
-              ...entryObj,
-              jornadaId: selectedJornada,
-              team1Name: teamMap[entryObj.pair.team1_id].name,
-              team2Name: teamMap[entryObj.pair.team2_id].name,
-              id: entryObj.id,
-              // le pasamos aquí la configuración de plantillas
-              config: templateConfig
-            });
-  }
-}}
-
+           onClick={() => {
+             if (isConfirmed) {
+               onSelectMatch({
+                 ...entryObj,
+                 jornadaId: selectedJornada,
+                 team1Name: teamMap[entryObj.pair.team1_id].name,
+                 team2Name: teamMap[entryObj.pair.team2_id].name,
+                 id: entryObj.id,
+                 config: templateConfig
+               });
+             }
+           }}
          >
-           {teamMap[entryObj.pair.team1_id]?.name} vs {' '}
-           {teamMap[entryObj.pair.team2_id]?.name}
+           {/*
+             Si entryObj.result existe, mostramos "EquipoA G1-G2 EquipoB",
+             si no, "EquipoA vs EquipoB"
+           */}
+           {entryObj.result
+             ? `${teamMap[entryObj.pair.team1_id]?.name || ''} ${entryObj.result.goals1}-${entryObj.result.goals2} ${teamMap[entryObj.pair.team2_id]?.name || ''}`
+             : `${teamMap[entryObj.pair.team1_id]?.name} vs ${teamMap[entryObj.pair.team2_id]?.name}`
+           }
            {entryObj.origin < roundIdx && (
              <em style={{ marginLeft:'0.5rem', fontSize:'0.75rem' }}>
                (P.P. J{entryObj.origin + 1})

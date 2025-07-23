@@ -7,7 +7,8 @@ import { getTournamentConfig }     from './tournamentService.js';
  */
 export async function createMatch({
   team1Id, team2Id, goals1, goals2,
-  playerGoalsInput = [], jornadaId
+  playerGoalsInput = [], jornadaId,
+  referee = ''
 }) {
   ensureOnline();
 
@@ -20,6 +21,7 @@ export async function createMatch({
       goals1,
       goals2,
       jornada_id: jornadaId,
+      referee,                // ← guardamos árbitro
       date:       new Date().toISOString().split('T')[0]
     }])
     .select('id')
@@ -92,14 +94,23 @@ export async function updateMatchResult({
   matchId,
   goals1,
   goals2,
-  playerGoalsInput = []
+  playerGoalsInput = [],
+  referee = ''
 }) {
   ensureOnline();
 
-  // 1) Actualizamos únicamente goles y devolvemos la fila actualizada
+  // ── 0) Traer datos viejos para poder “deshacer” sus stats ──
+  const { data: old, error: oldErr } = await supabase
+    .from('matches')
+    .select('goals1,goals2,team1_id,team2_id,jornada_id')
+    .eq('id', matchId)
+    .single();
+  if (oldErr) console.error('Error fetch old match:', oldErr);
+
+  // ── 1) Actualizamos goles ──
   const { data: updated, error: updErr } = await supabase
     .from('matches')
-    .update({ goals1, goals2 })
+    .update({ goals1, goals2, referee })    // ← actualizamos referee
     .eq('id', matchId)
     .select('*')
     .single();
@@ -127,47 +138,83 @@ export async function updateMatchResult({
   // 3) Incrementar team_tournament_stats vía RPC
   // —————————————————————————
 
-  // 3.1) Obtener división y temporada de la jornada
-  const { data: jr, error: errJr } = await supabase
-    .from('jornadas')
-    .select('division,season')
-    .eq('id', updated.jornada_id)
-    .single();
-  if (errJr) console.error(errJr);
+  // ── 3) Anulamos primero los puntos viejos sólo si el partido NO era 0–0 ──
+  if (old && (old.goals1 !== 0 || old.goals2 !== 0)) {
+    const { data: jrOld } = await supabase
+      .from('jornadas')
+      .select('division,season')
+      .eq('id', old.jornada_id)
+      .single();
+    const { data: tourOld } = await supabase
+      .from('tournaments')
+      .select('id')
+      .eq('division', jrOld.division)
+      .eq('season',   jrOld.season)
+      .single();
+    const tId = tourOld.id;
+    // decide cómo revertir
+    const decide = (g1, g2) => {
+      if (g1 > g2)      return ['wins','losses'];
+      if (g1 < g2)      return ['losses','wins'];
+      return ['draws','draws'];
+    };
+    const [oldRes1,oldRes2] = decide(old.goals1, old.goals2);
+    // RPC con signo negativo para revertir
+    await supabase.rpc('increment_team_tournament_stats', {
+      p_team_id: old.team1_id, p_tournament_id: tId,
+      p_result_column: oldRes1,
+      p_goals_for: -old.goals1, p_goals_against: -old.goals2
+    });
+    await supabase.rpc('increment_team_tournament_stats', {
+      p_team_id: old.team2_id, p_tournament_id: tId,
+      p_result_column: oldRes2,
+      p_goals_for: -old.goals2, p_goals_against: -old.goals1
+    });
 
-  // 3.2) Obtener el torneo activo
-  const { data: tour, error: errT } = await supabase
-    .from('tournaments')
-    .select('id')
-    .eq('division', jr.division)
-    .eq('season',   jr.season)
-    .single();
-  if (errT) console.error(errT);
-  const tournamentId = tour.id;
-
-  // 3.3) Decidir columna a incrementar
-  let res1, res2;
-  if (goals1 > goals2)      { res1 = 'wins';   res2 = 'losses'; }
-  else if (goals1 < goals2) { res1 = 'losses'; res2 = 'wins';   }
-  else                      { res1 = res2 = 'draws';            }
-
-  // 3.4) Llamar al RPC para cada equipo
-  for (const [teamId, resultCol, gf, gc] of [
-    [updated.team1_id, res1, goals1, goals2],
-    [updated.team2_id, res2, goals2, goals1]
-  ]) {
-    const { error: statsErr } = await supabase.rpc(
-      'increment_team_tournament_stats',
-      {
-        p_team_id:       teamId,
-        p_tournament_id: tournamentId,
-        p_result_column: resultCol,
-        p_goals_for:     gf,
-        p_goals_against: gc
-      }
-    );
-    if (statsErr) console.error('Error actualizando stats:', statsErr);
+    // ── 4) Ahora sumamos los nuevos ──
+    const [newRes1,newRes2] = decide(goals1, goals2);
+    await supabase.rpc('increment_team_tournament_stats', {
+      p_team_id: updated.team1_id, p_tournament_id: tId,
+      p_result_column: newRes1,
+      p_goals_for: goals1, p_goals_against: goals2
+    });
+    await supabase.rpc('increment_team_tournament_stats', {
+      p_team_id: updated.team2_id, p_tournament_id: tId,
+      p_result_column: newRes2,
+      p_goals_for: goals2, p_goals_against: goals1
+    });
   }
 
   return updated;
+}
+
+export async function getMatchDetail(matchId) {
+  ensureOnline();
+
+  // 1) Traigo goles y referee del partido
+  const { data: match, error: mErr } = await supabase
+    .from('matches')
+    .select('goals1,goals2,referee')      // ← pedimos referee
+    .eq('id', matchId)
+    .single();
+  if (mErr) throw mErr;
+
+  // 2) Traigo el lineup (player_goals)
+  const { data: pGoals, error: pgErr } = await supabase
+    .from('player_goals')
+    .select('player_id,goals')
+    .eq('match_id', matchId);
+  if (pgErr) throw pgErr;
+
+  // 3) Devuelvo todo
+  return {
+    goals1:   match.goals1,
+    goals2:   match.goals2,
+    referee:  match.referee,              // ← devolvemos referee
+    lineup:   pGoals.map(pg => ({
+      playerId: pg.player_id,
+      goals:    pg.goals,
+      // no sabemos si fue starter o sub: eso podrías guardarlo tú en player_goals o inferirlo
+    }))
+  };
 }

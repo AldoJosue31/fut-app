@@ -59,3 +59,98 @@ export async function getStandings(division, season) {
     b.stats.PTS - a.stats.PTS || b.stats.GF - a.stats.GF
   );
 }
+
+/**
+ * Obtiene la clasificación acumulada hasta una jornada concreta.
+ * @param {string} division
+ * @param {string} season
+ * @param {number} uptoJornadaId  // id numérico de la jornada “tope”
+ */
+export async function getStandingsByJornada(division, season, jornadaId) {
+  ensureOnline();
+
+  // 1) Traer IDs de jornadas <= jornadaId
+  const { data: js, error: errJ } = await supabase
+    .from('jornadas')
+    .select('id')
+    .eq('division', division)
+    .eq('season', season)
+    .lte('id', jornadaId);
+  if (errJ) throw errJ;
+  const jornadaIds = js.map(j => j.id);
+
+  if (jornadaIds.length === 0) {
+    return [];
+  }
+
+  // 2) Traer todos los partidos de esas jornadas
+  const { data: matches, error: errM } = await supabase
+    .from('matches')
+    .select('team1_id,team2_id,goals1,goals2')
+    .in('jornada_id', jornadaIds);
+  if (errM) throw errM;
+
+    // 2b) Ignorar partidos sin resultado (goals1 o goals2 === null)
+  const played = matches.filter(m => m.goals1 != null && m.goals2 != null);
+
+
+  // 3) Acumular stats por equipo
+  const statsMap = {};
+  function aseg(teamId) {
+    if (!statsMap[teamId]) {
+      statsMap[teamId] = { PJ:0, G:0, E:0, P:0, GF:0, GC:0 };
+    }
+    return statsMap[teamId];
+  }
+
+  for (const m of played) {
+    const a = aseg(m.team1_id);
+    const b = aseg(m.team2_id);
+    a.PJ++; b.PJ++;
+    a.GF += m.goals1;  a.GC += m.goals2;
+    b.GF += m.goals2;  b.GC += m.goals1;
+
+    if (m.goals1 > m.goals2) {
+      a.G++; b.P++;
+    } else if (m.goals1 < m.goals2) {
+      b.G++; a.P++;
+    } else {
+      a.E++; b.E++;
+    }
+  }
+
+  // 4) Traer nombres de equipos
+  const teamIds = Object.keys(statsMap).map(id => +id);
+  const { data: teams, error: errT } = await supabase
+    .from('teams')
+    .select('id,name')
+    .in('id', teamIds);
+  if (errT) throw errT;
+
+  // 5) Formatear y ordenar
+  const table = teamIds.map(id => {
+    const s = statsMap[id];
+    const team = teams.find(t => t.id === id);
+    const PTS = s.G * 3 + s.E;
+    return {
+      id,
+      name: team?.name || '–',
+      stats: {
+        PJ: s.PJ,
+        G:  s.G,
+        E:  s.E,
+        P:  s.P,
+        GF: s.GF,
+        GC: s.GC,
+        DG: s.GF - s.GC,
+        PTS
+      }
+    };
+  });
+
+  return table.sort((a,b) =>
+    b.stats.PTS - a.stats.PTS
+    || b.stats.DG  - a.stats.DG
+    || b.stats.GF  - a.stats.GF
+  );
+}

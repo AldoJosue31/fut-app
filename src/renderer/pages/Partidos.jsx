@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import '../styles/styles.css';
 import Torneos from './Torneos';
 import Jornadas from './Jornadas';
+import { getMatchDetail } from '../services/matchesService.js';
 import { getTeams } from '../services/teamsService.js';
 import { getPlayersByTeam } from '../services/playersService.js';
 import { createMatch, getMatchesByJornada } from '../services/matchesService.js';
@@ -299,6 +300,45 @@ const [showResultModal, setShowResultModal] = useState(false);
    })();
  }, [activeTab, selectedJornada]);
 
+   // ── Sincronizar tabla de horario con resultados reales ──
+  useEffect(() => {
+    if (!selectedJornada) return;
+    const key = `${activeDiv}-${season}-${selectedJornada}`;
+    // Leemos la tabla actual solo a la hora de ejecutar
+    const prevTable = tableSchedule[key] || {};
+    const curr = { ...prevTable };
+    let changed = false;
+
+    matches.forEach(m => {
+   // sólo si el partido ya tiene goles (no null) lo reflejamos
+   if (m.goals1 != null && m.goals2 != null) {
+     Object.entries(curr).forEach(([cellKey, cell]) => {
+       if (
+         cell.id === m.id ||
+         (!cell.id
+           && cell.pair.team1_id === m.team1_id
+           && cell.pair.team2_id === m.team2_id)
+       ) {
+         curr[cellKey] = {
+           ...cell,
+           id:     m.id,
+           result: { goals1: m.goals1, goals2: m.goals2 }
+         };
+         changed = true;
+       }
+     });
+   }
+    });
+
+    if (changed) {
+      localStorage.setItem(`table-${key}`, JSON.stringify(curr));
+      setTableSchedule(prevAll => ({
+        ...prevAll,
+        [key]: curr
+      }));
+    }
+  }, [matches, activeDiv, season, selectedJornada]);
+
   useEffect(() => {
     async function loadA() { teamA ? setPlayersA(await getPlayersByTeam(teamA)) : setPlayersA([]); }
     async function loadB() { teamB ? setPlayersB(await getPlayersByTeam(teamB)) : setPlayersB([]); }
@@ -407,33 +447,53 @@ async function handleConfirmJornada() {
     return alert('Arrastra al menos un partido para confirmar.');
   }
 
-  // 5) Guardar en la base y marcarla confirmada
-  setLoading(true);
-  try {
-   for (const [, cell] of entries) {
-     // EXTRAEMOS el par real
-     const { team1_id, team2_id } = cell.pair;
-     await createMatch({
-       team1Id: team1_id,
-       team2Id: team2_id,
-        goals1: 0,
-        goals2: 0,
-        playerGoalsInput: [],
-        jornadaId: selectedJornada
-      });
-    }
-    setConfirmedJornadas(prev => ({ ...prev, [key]: true }));
-       // ── ¡NUEVO! ──
-   // Recargamos los partidos recién creados para que matches esté al día
-   const nuevos = await getMatchesByJornada(selectedJornada);
-   setMatches(nuevos);
-    alert('Jornada confirmada y partidos guardados.');
-  } catch (err) {
-    console.error(err);
-    alert('Error al guardar los partidos en la base de datos.');
-  } finally {
-    setLoading(false);
+// 5) Guardar en la base, almacenar IDs y resultado inicial, y marcar confirmada
+setLoading(true);
+try {
+  // clonamos la tabla actual para ir montando la nueva
+  const newTable = { ...(tableSchedule[key] || {}) };
+
+  // insertamos cada partido y guardamos su id + resultado 0‑0
+  for (const [cellKey, cell] of entries) {
+    const { team1_id, team2_id } = cell.pair;
+    // volvemos a goals1:0, goals2:0 para cumplir la NOT NULL constraint
+    const matchData = await createMatch({
+      team1Id: team1_id,
+      team2Id: team2_id,
+        // ahora insertamos NULL para “sin resultado”
+        goals1: null,
+        goals2: null,
+      playerGoalsInput: [],
+      jornadaId: selectedJornada
+    });
+    newTable[cellKey] = {
+      ...cell,
+      id: matchData.id,
+      // no ponemos result aquí, lo añadiremos sólo tras la edición real
+    };
   }
+
+  // 5.3) volcamos el nuevo schedule a estado y localStorage
+  localStorage.setItem(`table-${key}`, JSON.stringify(newTable));
+  setTableSchedule(prev => ({ ...prev, [key]: newTable }));
+  setConfirmedJornadas(prev => ({ ...prev, [key]: true }));
+
+      // ↪ recargamos inmediatamente los partidos confirmados,
+    //   para que handleSelectMatch los encuentre
+    const nuevos = await getMatchesByJornada(selectedJornada);
+    setMatches(nuevos);
+
+
+
+
+  alert('✅ Jornada confirmada y partidos guardados.');
+} catch (err) {
+  console.error(err);
+  alert('❌ Error al guardar los partidos en la base de datos.');
+} finally {
+  setLoading(false);
+}
+
 }
 
 
@@ -493,7 +553,7 @@ async function handleReturnMatch(e) {
   localStorage.setItem(`schedule-${schedKey}`, JSON.stringify(newRounds));
   setScheduledMatches(prev => ({ ...prev, [schedKey]: newRounds }));
 }
-function handleSelectMatch(entryObj) {
+async function handleSelectMatch(entryObj) {
   // buscamos el partido en la DB para obtener su match.id
   const found = matches.find(m =>
     m.jornada_id === entryObj.jornadaId &&
@@ -504,14 +564,26 @@ function handleSelectMatch(entryObj) {
   if (!found) {
     return alert('No se encontró el partido en la base de datos.');
   }
+    // ── 3) Recupero detalle completo (goles y referee y lineup) ──
+  let detail;
+  try {
+    detail = await getMatchDetail(found.id);
+  } catch (err) {
+    console.error('Error cargando detalle del partido:', err);
+    detail = { goals1: found.goals1, goals2: found.goals2, referee:'', lineup: [] };
+  }
+
 
   setSelectedMatchEntry({
     ...entryObj,
     id: found.id,
     team1Name: teamMap[entryObj.pair.team1_id].name,
     team2Name: teamMap[entryObj.pair.team2_id].name,
-        // ahora usa la config que trajo cada partido:
-    config:    found.config
+    config:    found.config,
+    goals1:    detail.goals1,
+    goals2:    detail.goals2,
+    referee:   detail.referee,    // ← inyectamos referee
+    lineup:    detail.lineup
   });
   setShowResultModal(true);
 }
@@ -569,6 +641,7 @@ function handleCloseResultModal() {
           teamsByDiv={teamsByDiv}
           scheduledMatches={scheduledMatches}
           tableSchedule={tableSchedule}
+          setTableSchedule={setTableSchedule}
           confirmLoaded={confirmLoaded}
           confirmedJornadas={confirmedJornadas}
           handleDrop={handleDrop}
