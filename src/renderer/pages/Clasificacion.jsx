@@ -8,119 +8,150 @@ import {
 import { getPlayersByTeam, getPlayerStats } from '../services/playersService.js';
 import { getTeams }       from '../services/teamsService.js';
 import { getJornadas }    from '../services/jornadasService.js';
+import { supabase }       from '../supabaseClient.js';
 
 const tabs = ['Tabla','Jornadas','Goleadores'];
 
 export default function Clasificacion() {
-  const [activeTab, setActiveTab]             = useState('Tabla');
+  const [activeTab, setActiveTab] = useState('Tabla');
   const [classificationData, setClassificationData] = useState([]);
-  const [goleadoresData, setGoleadoresData]   = useState([]);
-  const [jornadas, setJornadas]               = useState([]);
-  const [lastPlayed, setLastPlayed]           = useState(null);
+  const [goleadoresData, setGoleadoresData] = useState([]);
+  const [jornadas, setJornadas] = useState([]);
+  const [playedJornadas, setPlayedJornadas] = useState([]);
   const [selectedJornada, setSelectedJornada] = useState(null);
 
-  // 1) Carga lista de jornadas al montar
+  // ── DEBUG: ping rápido a Supabase ──
   useEffect(() => {
     (async () => {
-      const division = localStorage.getItem('division') || 'Primera';
-      const season   = localStorage.getItem('season')   || 'Apertura 2025';
-      const allJ = await getJornadas();
-      const filtered = allJ
-        .filter(j => j.division === division && j.season === season)
-        .sort((a,b) => a.id - b.id);
-      setJornadas(filtered);
-
-      // Detectar la última jornada que tenga partidos (para "Todas")
-      let maxPlayed = null;
-      for (const j of filtered) {
-        const matches = await getStandingsByJornada(division, season, j.id)
-          .catch(() => []);
-        if (matches.length > 0) {
-          maxPlayed = j.id;
-        }
+      try {
+        const { data, error } = await supabase
+          .from('teams')
+          .select('id')
+          .limit(1);
+        console.log('[DEBUG] supabase teams ping:', { data, error });
+      } catch (err) {
+        console.error('[DEBUG] supabase ping error:', err);
       }
-      setLastPlayed(maxPlayed);
-
-      // valor null = “Todas las jornadas” (hasta la última jugada)
-      setSelectedJornada(null);
     })();
   }, []);
 
-  // 2) Cada vez que cambie selectedJornada, recargar la clasificación
+  // 1) Carga lista de jornadas y detecta cuáles tienen partidos ya jugados
+  useEffect(() => {
+    (async () => {
+      try {
+        const division = localStorage.getItem('division') || 'Primera';
+        const season   = localStorage.getItem('season')   || 'Apertura 2025';
+        console.log('[DEBUG] cargando jornadas para', { division, season });
+
+        const allJ = await getJornadas();
+  let filtered = allJ
+    .filter(j => j.division === division && j.season === season)
+    .sort((a,b) => a.id - b.id);
+  // si no encontramos nada para division+season, hacemos fallback a TODAS
+  if (filtered.length === 0) {
+    console.warn('[Clasificación] no hay jornadas para', division, season, '; mostrando todas');
+    filtered = allJ.sort((a,b) => a.id - b.id);
+  }
+        console.log('[DEBUG] jornadas encontradas:', filtered);
+        setJornadas(filtered);
+
+        const { data: ms, error: msError } = await supabase
+          .from('matches')
+          .select('jornada_id')
+          .not('goals1', 'is', null)
+          .not('goals2', 'is', null)
+          .in('jornada_id', filtered.map(j => j.id));
+        if (msError) console.error('❌ Error fetch matches:', msError);
+
+        const playedIds = new Set(ms.map(m => m.jornada_id));
+        const pj = filtered.filter(j => playedIds.has(j.id));
+        console.log('[DEBUG] jornadas jugadas:', pj);
+        setPlayedJornadas(pj);
+
+        setSelectedJornada(null);  // arrancamos en "Todas"
+      } catch (err) {
+        console.error('❌ Error cargando jornadas o matches:', err);
+      }
+    })();
+  }, []);
+
+  // 2) Recalcula la clasificación cada vez que cambie la jornada seleccionada
   useEffect(() => {
     async function fetchClassification() {
-      const division = localStorage.getItem('division') || 'Primera';
-      const season   = localStorage.getItem('season')   || 'Apertura 2025';
-      let data;
-      if (selectedJornada == null) {
-        // "Todas las jornadas" → hasta la última jornada existente
-        const lastJ = jornadas[jornadas.length - 1]?.id;
-        if (lastJ != null) {
-          data = await getStandingsByJornada(division, season, lastJ);
-        } else {
-          data = []; // sin jornadas aún
-        }
-      } else {
-        data = await getStandingsByJornada(division, season, selectedJornada);
+      try {
+        const division = localStorage.getItem('division') || 'Primera';
+        const season   = localStorage.getItem('season')   || 'Apertura 2025';
+        let data;
+    if (selectedJornada == null) {
+      // "Todas las jornadas" → clasificación global completa
+      data = await getStandings(division, season);
+    } else {
+      // clasificación hasta jornada seleccionada
+      data = await getStandingsByJornada(division, season, selectedJornada);
+    }
+        console.log('[DEBUG] clasificación recibida:', data);
+        setClassificationData(data);
+      } catch (err) {
+        console.error('❌ Error fetchClassification:', err);
       }
-      setClassificationData(data);
     }
     fetchClassification();
-  }, [selectedJornada]);
+  }, [selectedJornada, playedJornadas]);
 
   // 3) Carga goleadores sólo una vez
   useEffect(() => {
     (async () => {
-      const division = localStorage.getItem('division') || 'Primera';
-      const teams = await getTeams();
-      const filtered = teams.filter(t => t.division === division);
-      const list = [];
-      for (const team of filtered) {
-        const players = await getPlayersByTeam(team.id);
-        for (const p of players) {
-          const stats = await getPlayerStats(p.id).catch(() => ({ total_goals: 0 }));
-          list.push({
-            id:    p.id,
-            name:  `${p.nombre} ${p.apellido}`,
-            team:  team.name,
-            goals: stats.total_goals
-          });
+      try {
+        const division = localStorage.getItem('division') || 'Primera';
+        console.log('[DEBUG] cargando goleadores para división', division);
+        const teams = await getTeams();
+        const filtered = teams.filter(t => t.division === division);
+        const list = [];
+        for (const team of filtered) {
+          const players = await getPlayersByTeam(team.id);
+          for (const p of players) {
+            const stats = await getPlayerStats(p.id).catch(() => ({ total_goals: 0 }));
+            list.push({
+              id:    p.id,
+              name:  `${p.nombre} ${p.apellido}`,
+              team:  team.name,
+              goals: stats.total_goals
+            });
+          }
         }
+        list.sort((a,b) => b.goals - a.goals);
+        console.log('[DEBUG] goleadores:', list);
+        setGoleadoresData(list);
+      } catch (err) {
+        console.error('❌ Error cargando goleadores:', err);
       }
-      list.sort((a,b) => b.goals - a.goals);
-      setGoleadoresData(list);
     })();
   }, []);
 
   // Navegación de jornadas para el selector sobre la tabla
   const prevJ = () => {
-    // Si estoy en "Todas", voy a la última jornada jugada
-    if (selectedJornada == null && lastPlayed != null) {
-      setSelectedJornada(lastPlayed);
+    if (selectedJornada == null) {
+      const last = playedJornadas[playedJornadas.length - 1];
+      if (last) setSelectedJornada(last.id);
       return;
     }
-    const idx = jornadas.findIndex(j => j.id === selectedJornada);
-        // sólo retrocedo si hay jornada anterior y esa también fue jugada
-    if (idx > 0 && jornadas[idx-1].id <= (lastPlayed ?? jornadas[jornadas.length-1].id)) {
-      setSelectedJornada(jornadas[idx-1].id);
+    const idx = playedJornadas.findIndex(j => j.id === selectedJornada);
+    if (idx > 0) {
+      setSelectedJornada(playedJornadas[idx - 1].id);
     } else {
-      // si llegamos al principio, volvemos a "Todas"
       setSelectedJornada(null);
     }
   };
   const nextJ = () => {
-    // Si estoy en "Todas", voy a la primera jornada jugada
-    if (selectedJornada == null && lastPlayed != null) {
-      setSelectedJornada(jornadas[0].id);
+    if (selectedJornada == null) {
+      const first = playedJornadas[0];
+      if (first) setSelectedJornada(first.id);
       return;
     }
-    const idx = jornadas.findIndex(j => j.id === selectedJornada);
-    // sólo avanzo si la siguiente jornada también fue jugada
-    if (idx >= 0 && idx < jornadas.length - 1
-        && jornadas[idx+1].id <= (lastPlayed ?? jornadas[jornadas.length-1].id)) {
-      setSelectedJornada(jornadas[idx+1].id);
+    const idx = playedJornadas.findIndex(j => j.id === selectedJornada);
+    if (idx >= 0 && idx < playedJornadas.length - 1) {
+      setSelectedJornada(playedJornadas[idx + 1].id);
     } else {
-      // si llegamos al final, volvemos a "Todas"
       setSelectedJornada(null);
     }
   };
@@ -149,16 +180,18 @@ export default function Clasificacion() {
 
             {/* Selector de jornada encima de la tabla */}
             <div className="jornadas-nav" style={{ marginBottom: '1rem' }}>
-              <button onClick={prevJ} className="team-btn">
+              <button onClick={prevJ} className="team-btn"
+                disabled={playedJornadas.length === 0}>
                 {'<'}
               </button>
               <span className="jornada-title" style={{ margin: '0 1rem' }}>
                 { selectedJornada == null
-                    ? 'Todas las jornadas'
+                    ? `Última jornada (hasta ${playedJornadas[playedJornadas.length - 1]?.name || '–'})`
                     : (jornadas.find(j => j.id === selectedJornada)?.name || '–')
                 }
               </span>
-              <button onClick={nextJ} className="team-btn">
+              <button onClick={nextJ} className="team-btn"
+                disabled={playedJornadas.length === 0}>
                 {'>'}
               </button>
             </div>
