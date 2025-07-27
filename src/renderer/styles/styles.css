@@ -1164,3 +1164,7 @@
   border-radius: 4px;
   border: 2px solid #2A2A2A;
 }
+
+html, body, #root {
+  background-color: #2D2D2D;
+}

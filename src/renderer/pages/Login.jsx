@@ -2,6 +2,7 @@
 import React, { useState } from 'react'
 import { useAuth }          from '../../contexts/AuthContext'
 import { useNavigate, Link } from 'react-router-dom'
+import AnimatedBackground from '../components/AnimatedBackground'
 
 const Login = () => {
   const { signIn } = useAuth()
@@ -36,6 +37,7 @@ const Login = () => {
       justifyContent: 'center', alignItems: 'center',
       backgroundColor: '#2D2D2D'
     }}>
+      <AnimatedBackground />
       <div className="content-box" style={{ width: '100%', maxWidth: '400px' }}>
         <h1 className="title" style={{ textAlign: 'center' }}>
           Iniciar Sesión

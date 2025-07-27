@@ -1,5 +1,7 @@
 // src/renderer/pages/Clasificacion.jsx
 import React, { useState, useEffect } from 'react';
+import { ClassificationTableSkeleton } from '../components/Skeletons.jsx';
+
 import '../styles/styles.css';
 import {
   getStandings,
@@ -204,6 +206,28 @@ export default function Clasificacion() {
                 </tr>
               </thead>
               <tbody>
+                {classificationData.length === 0 ? (
+  <ClassificationTableSkeleton rows={10} />
+) : (
+  classificationData.map((team, idx) => (
+    <tr key={team.id}>
+      <td>{idx + 1}</td>
+      <td className="team-cell">
+        <span className="team-color" />
+        <span className="team-name">{team.name}</span>
+      </td>
+      <td>{team.stats.PJ}</td>
+      <td>{team.stats.G}</td>
+      <td>{team.stats.E}</td>
+      <td>{team.stats.P}</td>
+      <td>{team.stats.GF}</td>
+      <td>{team.stats.GC}</td>
+      <td>{team.stats.DG}</td>
+      <td>{team.stats.PTS}</td>
+    </tr>
+  ))
+)}
+
                 {classificationData.map((team, idx) => (
                   <tr key={team.id}>
                     <td>{idx + 1}</td>
