@@ -1,6 +1,10 @@
 // src/renderer/pages/Jornadas.jsx
-import React, { useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getGlobalLineupConfig } from '../services/configService';
+import {
+  moveScheduledMatch,
+  confirmJornadaSchedule
+} from '../services/scheduleService.js';
 
 export default function Jornadas({
   divisions,
@@ -11,8 +15,8 @@ export default function Jornadas({
   jornadas,
   selectedJornada,
   setSelectedJornada,
-  allTeams,               // lista completa de equipos (activos e inactivos)
-  scheduledMatches,
+  allTeams,
+  scheduledMatches,      // << aquí viene tu calendario base round-robin
   tableSchedule,
   setTableSchedule,
   confirmLoaded,
@@ -25,119 +29,120 @@ export default function Jornadas({
   onSelectMatch,
   showResultModal,
   onCloseResultModal,
-  selectedMatchEntry, templateConfig
+  selectedMatchEntry,
+  templateConfig
 }) {
-    // 0b) Traemos la configuración global de titulares y suplentes
-  const [lineupConfig, setLineupConfig] = React.useState({ starters: 5, subs: 6 });
-  React.useEffect(() => {
+  // 0) Config global alineaciones
+  const [lineupConfig, setLineupConfig] = useState({ starters: 5, subs: 6 });
+  useEffect(() => {
     getGlobalLineupConfig().then(setLineupConfig).catch(console.error);
   }, []);
-  // 0) Mapa id → equipo
+
+  // 1) Mapa id → equipo
   const teamMap = useMemo(
     () => Object.fromEntries(allTeams.map(t => [t.id, t])),
     [allTeams]
   );
 
-  // 1) Sólo jornadas confirmadas + la siguiente no confirmada
+  // 2) Sólo jornadas confirmadas + la siguiente no confirmada
   const activeJornadas = useMemo(() => {
     const keyFor = j => `${activeDiv}-${season}-${j.id}`;
     const idxNext = jornadas.findIndex(j => !confirmedJornadas[keyFor(j)]);
-    return idxNext === -1 ? jornadas : jornadas.slice(0, idxNext + 1);
+    return idxNext < 0
+      ? jornadas
+      : jornadas.slice(0, idxNext + 1);
   }, [jornadas, confirmedJornadas, activeDiv, season]);
 
-  // Índices y flags
   const roundIdx = activeJornadas.findIndex(j => j.id === selectedJornada);
-  const schedKey  = `${activeDiv}-${season}`;
-  const rounds    = scheduledMatches[schedKey] || [];
-  const lastIdx   = rounds.length - 1;
-  const isLast    = roundIdx === lastIdx;
+  const isLast   = roundIdx === activeJornadas.length - 1;
 
-  // 2) Construir barra: emparejamientos de la ronda + pendientes de rondas previas
-  const itemsForBar = useMemo(() => {
-    if (roundIdx < 0) return [];
-    const placed = Object.values(
-      tableSchedule[`${activeDiv}-${season}-${selectedJornada}`] || {}
-    );
-    const idOf = (p, origin) => `${p.team1_id}-${p.team2_id}-r${origin}`;
-    const list = (rounds[roundIdx] || []).map(p => ({
-      pair: p,
+  // 3) Barra de partidos: ronda actual + pendientes de previas
+  const [itemsForBar, setItemsForBar] = useState([]);
+  useEffect(() => {
+    if (!selectedJornada) {
+      setItemsForBar([]);
+      return;
+    }
+    const schedKey = `${activeDiv}-${season}`;
+    const rounds = scheduledMatches[schedKey] || [];
+
+    // pares de la ronda actual
+    const bar = (rounds[roundIdx] || []).map(pair => ({
+      pair,
       origin: roundIdx,
       label: null
     }));
+
+    // detectamos pendientes de rondas anteriores
+    const placed = Object.values(
+      tableSchedule[`${activeDiv}-${season}-${selectedJornada}`] || {}
+    ).map(cell => cell.pair);
+
     for (let i = 0; i < roundIdx; i++) {
-      const keyPrev = `${activeDiv}-${season}-${activeJornadas[i].id}`;
-      if (!confirmLoaded[keyPrev] || !confirmedJornadas[keyPrev]) continue;
-      (rounds[i] || []).forEach(p => {
-        if (!placed.some(r => r.team1_id === p.team1_id && r.team2_id === p.team2_id)) {
-          list.push({
-            pair: p,
+      (rounds[i] || []).forEach(pair => {
+        const exists = placed.some(
+          p => p.team1_id === pair.team1_id && p.team2_id === pair.team2_id
+        );
+        if (!exists) {
+          bar.push({
+            pair,
             origin: i,
-            label: `(PJ${i + 1})`
+            label: `(P.J ${i + 1})`
           });
         }
       });
     }
-    // dedupe
+
+    // eliminar duplicados en caso de que haya
     const seen = new Set();
-    return list.filter(({ pair, origin }) => {
-      const k = idOf(pair, origin);
-      if (seen.has(k)) return false;
-      seen.add(k);
+    const deduped = bar.filter(({ pair, origin }) => {
+      const key = `${pair.team1_id}-${pair.team2_id}-r${origin}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
       return true;
     });
+
+    setItemsForBar(deduped);
   }, [
-    activeJornadas, roundIdx,
-    scheduledMatches, tableSchedule,
-    activeDiv, season,
-    confirmLoaded, confirmedJornadas,
-    selectedJornada
+    scheduledMatches,
+    activeDiv,
+    season,
+    selectedJornada,
+    tableSchedule,
+    roundIdx
   ]);
 
-  // 3) Crear un mapa rápido de pair → label para render en tabla
-  const barLabelMap = useMemo(() => {
-    const m = {};
-    itemsForBar.forEach(({ pair, origin, label }) => {
-      const key = `${pair.team1_id}-${pair.team2_id}-r${origin}`;
-      m[key] = label;
-    });
-    return m;
-  }, [itemsForBar]);
-
-  // helper para key
-  const idOf = (p, origin) => `${p.team1_id}-${p.team2_id}-r${origin}`;
-
-    // → 3) Escuchar cambios de resultado de un partido
-  React.useEffect(() => {
-    function onResultUpdate(e) {
+  // 4) Escuchar resultados en vivo para actualizar la tabla
+  useEffect(() => {
+    const handler = e => {
       const { matchId, goals1, goals2 } = e.detail;
-      const tableKey = `${activeDiv}-${season}-${selectedJornada}`;
-      const curr = { ...(tableSchedule[tableKey] || {}) };
+      const key = `${activeDiv}-${season}-${selectedJornada}`;
+      const curr = { ...(tableSchedule[key] || {}) };
       let changed = false;
 
-      // buscamos la celda cuyo cell.id sea el matchId y actualizamos su .result
-      for (const cellKey of Object.keys(curr)) {
-        const cell = curr[cellKey];
-        if (cell.id === matchId) {
-          curr[cellKey] = {
-            ...cell,
+      Object.entries(curr).forEach(([cell, obj]) => {
+        if (obj.id === matchId) {
+          curr[cell] = {
+            ...obj,
             result: { goals1, goals2 }
           };
           changed = true;
-          break;
         }
-      }
-      if (changed) {
-        localStorage.setItem(`table-${tableKey}`, JSON.stringify(curr));
-        setTableSchedule(prev => ({ ...prev, [tableKey]: curr }));
-      }
-    }
+      });
 
-    window.addEventListener('matchResultUpdated', onResultUpdate);
-    return () => window.removeEventListener('matchResultUpdated', onResultUpdate);
-  }, [activeDiv, season, selectedJornada, tableSchedule]);
+      if (changed) {
+        setTableSchedule(ps => ({ ...ps, [key]: curr }));
+      }
+    };
+
+    window.addEventListener('matchResultUpdated', handler);
+    return () =>
+      window.removeEventListener('matchResultUpdated', handler);
+  }, [activeDiv, season, selectedJornada, tableSchedule, setTableSchedule]);
+
   return (
     <>
-      {/* División selector */}
+      {/* -- Selector de división -- */}
       <div className="tabs" style={{ marginBottom: '1rem' }}>
         {divisions.filter(d => startedDivisions[d]).map(div => (
           <button
@@ -150,38 +155,50 @@ export default function Jornadas({
         ))}
       </div>
 
-      {/* No hay jornadas */}
+      {/* -- Si no hay jornadas activas -- */}
       {activeJornadas.length === 0 ? (
-        <div style={{ color: '#E5E7EB', padding: '1rem' }}>
+        <div style={{ padding: '1rem', color: '#aaa' }}>
           No hay torneos iniciados en esta división.
         </div>
       ) : (
         <div className="content-box">
-
-          {/* Navegación de jornadas */}
+          {/* -- Navegación de jornadas -- */}
           <div className="jornadas-nav">
             <button
-              onClick={() => roundIdx > 0 && setSelectedJornada(activeJornadas[roundIdx - 1].id)}
+              onClick={() =>
+                roundIdx > 0 &&
+                setSelectedJornada(
+                  activeJornadas[roundIdx - 1].id
+                )
+              }
               disabled={roundIdx <= 0}
               className="team-btn"
-            >{'<'}</button>
-
-            <span className="jornada-title" style={{ margin: '0 1rem', color: '#F3F4F6' }}>
-              {activeJornadas.find(j => j.id === selectedJornada)?.name || 'Sin jornadas'}
+            >
+              ‹
+            </button>
+            <span style={{ margin: '0 1rem', color: '#F3F4F6' }}>
+              {activeJornadas[roundIdx]?.name}
             </span>
-
             <button
-              onClick={() => roundIdx < activeJornadas.length - 1 && setSelectedJornada(activeJornadas[roundIdx + 1].id)}
+              onClick={() =>
+                roundIdx < activeJornadas.length - 1 &&
+                setSelectedJornada(
+                  activeJornadas[roundIdx + 1].id
+                )
+              }
               disabled={roundIdx >= activeJornadas.length - 1}
               className="team-btn"
-            >{'>'}</button>
+            >
+              ›
+            </button>
           </div>
 
-          {/* Tabla de horarios */}
+          {/* -- Tabla de horarios -- */}
           {selectedJornada && (() => {
             const key = `${activeDiv}-${season}-${selectedJornada}`;
             const isLoaded    = confirmLoaded[key];
             const isConfirmed = confirmedJornadas[key];
+
             return (
               <div className="classification-table-wrapper">
                 {!isLoaded && (
@@ -191,199 +208,205 @@ export default function Jornadas({
                 )}
                 <table
                   className="classification-table"
-                  style={{ visibility: isLoaded ? 'visible' : 'hidden' }}
+                  style={{
+                    visibility: isLoaded ? 'visible' : 'hidden'
+                  }}
                 >
                   <thead>
                     <tr>
                       <th>Hora</th>
-                      {['L','Ma','Mi','J','V','S'].map(d => <th key={d}>{d}</th>)}
+                      {['L','Ma','Mi','J','V','S'].map(d => (
+                        <th key={d}>{d}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-{hours.map((hora, r) => (
-  <tr key={r}>
-    <td style={{ color: '#E5E7EB' }}>{`${hora} p.m.`}</td>
-    {[0,1,2,3,4,5].map(c => {
-      const cell = `${r}-${c}`;
-      const raw = (tableSchedule[key] || {})[cell];
-      if (!raw) {
-        return (
-          <td
-            key={c}
-            style={{
-              position: 'relative',
-              border: '1px solid rgba(255,255,255,0.2)',
-              height: '4rem'
-            }}
-            onDragOver={e => isLoaded && !isConfirmed && e.preventDefault()}
-            onDrop={e => isLoaded && !isConfirmed && handleDrop(e, r, c)}
-          />
-        );
-      }
-      // normalizar raw en entryObj
-      const entryObj = raw.pair
-        ? raw
-        : { pair: raw, origin: roundIdx, label: null };
+                    {hours.map((hora, r) => (
+                      <tr key={r}>
+                        <td style={{ color: '#E5E7EB' }}>
+                          {hora} p.m.
+                        </td>
+                        {[0,1,2,3,4,5].map(c => {
+                          const cell = `${r}-${c}`;
+                          const raw  = (tableSchedule[key]||{})[cell];
+                          if (!raw) {
+                            return (
+                              <td
+                                key={c}
+                                style={{
+                                  position: 'relative',
+                                  border: '1px solid rgba(255,255,255,0.2)',
+                                  height: '4rem'
+                                }}
+                                onDragOver={e =>
+                                  isLoaded &&
+                                  !isConfirmed &&
+                                  e.preventDefault()
+                                }
+                                onDrop={e =>
+                                  isLoaded &&
+                                  !isConfirmed &&
+                                  handleDrop(e, r, c)
+                                }
+                              />
+                            );
+                          }
 
-      return (
-        <td
-          key={c}
-          style={{
-            position: 'relative',
-            border: '1px solid rgba(255,255,255,0.2)',
-            height: '4rem'
-          }}
-          onDragOver={e => isLoaded && !isConfirmed && e.preventDefault()}
-          onDrop={e => isLoaded && !isConfirmed && handleDrop(e, r, c)}
-        >
-         {/* Si la jornada está confirmada, al hacer click abrimos el modal */}
-         <div
-           className="match-card"
-           style={{
-             position:'absolute', top:0, left:0, right:0, bottom:0,
-             background:'#3A3A3A', borderRadius:'0.375rem', padding:'0.5rem',
-             color:'#F3F4F6', display:'flex', alignItems:'center',
-             justifyContent:'center',
-             cursor: isConfirmed ? 'pointer' : 'move',
-             opacity: isConfirmed ? 0.7 : 1
-           }}
-           draggable={!isConfirmed}
-           onDragStart={e => {
-             if (!isConfirmed) {
-               e.dataTransfer.setData(
-                 'application/json',
-                 JSON.stringify({
-                   pair: entryObj.pair,
-                   roundIdx: entryObj.origin,
-                   fromCell: cell
-                 })
-               );
-             }
-           }}
-           onClick={() => {
-             if (isConfirmed) {
-               onSelectMatch({
-                 ...entryObj,
-                 jornadaId: selectedJornada,
-                 team1Name: teamMap[entryObj.pair.team1_id].name,
-                 team2Name: teamMap[entryObj.pair.team2_id].name,
-                 id: entryObj.id,
-                 config: templateConfig
-               });
-             }
-           }}
-         >
-           {/*
-             Si entryObj.result existe, mostramos "EquipoA G1-G2 EquipoB",
-             si no, "EquipoA vs EquipoB"
-           */}
-           {entryObj.result
-             ? `${teamMap[entryObj.pair.team1_id]?.name || ''} ${entryObj.result.goals1}-${entryObj.result.goals2} ${teamMap[entryObj.pair.team2_id]?.name || ''}`
-             : `${teamMap[entryObj.pair.team1_id]?.name} vs ${teamMap[entryObj.pair.team2_id]?.name}`
-           }
-           {entryObj.origin < roundIdx && (
-             <em style={{ marginLeft:'0.5rem', fontSize:'0.75rem' }}>
-               (P.P. J{entryObj.origin + 1})
-             </em>
-           )}
-         </div>
-        </td>
-      );
-    })}
-  </tr>
-))}
+                          // ya hay algo en esta celda
+                          const entryObj = raw;
 
-
-
+                          return (
+                            <td
+                              key={c}
+                              style={{
+                                position: 'relative',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                height: '4rem'
+                              }}
+                              onDragOver={e =>
+                                isLoaded &&
+                                !isConfirmed &&
+                                e.preventDefault()
+                              }
+                              onDrop={e =>
+                                isLoaded &&
+                                !isConfirmed &&
+                                handleDrop(e, r, c)
+                              }
+                            >
+                              <div
+                                className="match-card"
+                                style={{
+                                  position: 'absolute',
+                                  top: 0, left: 0, right: 0, bottom: 0,
+                                  background: '#3A3A3A',
+                                  borderRadius: '0.375rem',
+                                  padding: '0.5rem',
+                                  color: '#F3F4F6',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: isConfirmed
+                                    ? 'pointer'
+                                    : 'move',
+                                  opacity: isConfirmed ? 0.7 : 1
+                                }}
+                                draggable={!isConfirmed}
+                                onDragStart={e => {
+                                  if (!isConfirmed) {
+                                    e.dataTransfer.setData(
+                                      'application/json',
+                                      JSON.stringify({
+                                        pair: entryObj.pair,
+                                        roundIdx: entryObj.origin,
+                                        fromCell: cell
+                                      })
+                                    );
+                                  }
+                                }}
+                                onClick={() => {
+                                  if (isConfirmed) {
+                                    onSelectMatch({
+                                      ...entryObj,
+                                      jornadaId: selectedJornada,
+                                      team1Name:
+                                        teamMap[
+                                          entryObj.pair.team1_id
+                                        ].name,
+                                      team2Name:
+                                        teamMap[
+                                          entryObj.pair.team2_id
+                                        ].name,
+                                      id: entryObj.id,
+                                      config: templateConfig
+                                    });
+                                  }
+                                }}
+                              >
+                                {entryObj.result
+                                  ? `${teamMap[entryObj.pair.team1_id].name} ${
+                                      entryObj.result.goals1
+                                    }-${
+                                      entryObj.result.goals2
+                                    } ${teamMap[entryObj.pair.team2_id].name}`
+                                  : `${teamMap[entryObj.pair.team1_id].name} vs ${teamMap[entryObj.pair.team2_id].name}`
+                                }
+                                {entryObj.origin < roundIdx && (
+                                  <em style={{ marginLeft:'0.5rem', fontSize:'0.75rem' }}>
+                                    (P.J {entryObj.origin + 1})
+                                  </em>
+                                )}
+                              </div>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             );
           })()}
 
-          {/* Barra de partidos (siempre visible) */}
-{selectedJornada && (
-  <div
-    className="matches-bar"
-    onDragOver={e => e.dataTransfer.types.includes('application/json') && e.preventDefault()}
-    onDrop={handleReturnMatch}
-                  style={{
-                display:'flex',
-                gap:'1rem',
-                marginTop:'1rem',
-                padding:'1rem',
-                background:'#2A2A2A',
-                borderRadius:'0.5rem'
-              }}
-  >
-{itemsForBar.map(({ pair, origin }) => {
-  const t1 = teamMap[pair.team1_id] || {};
-  const t2 = teamMap[pair.team2_id] || {};
-  return (
-    <div
-      key={`${pair.team1_id}-${pair.team2_id}-${origin}`}
-      className="match-card"
-      draggable
-      onDragStart={e => {
-        e.dataTransfer.setData(
-          'application/json',
-          JSON.stringify({ pair, roundIdx: origin, fromCell: null })
-        );
-      }}
-      style={{
-        background:'#3A3A3A',
-        borderRadius:'0.375rem',
-        padding:'0.75rem',
-        color:'#F3F4F6',
-        cursor:'move'
-      }}
-    >
-      {t1.name} vs {t2.name}
-      {origin < roundIdx && (
-        <em style={{ marginLeft: '0.5rem' }}>
-          (Partido pendiente J{origin + 1})
-        </em>
-      )}
-    </div>
-  );
-})}
+          {/* -- Barra de partidos disponibles para arrastrar -- */}
+          <div
+            className="matches-bar"
+            style={{
+              display: 'flex',
+              gap: '1rem',
+              marginTop: '1rem',
+              padding: '1rem',
+              background: '#2A2A2A',
+              borderRadius: '0.5rem'
+            }}
+          >
+            {itemsForBar.map(({ pair, origin, label }) => {
+              const t1 = teamMap[pair.team1_id];
+              const t2 = teamMap[pair.team2_id];
+              return (
+                <div
+                  key={`${pair.team1_id}-${pair.team2_id}-${origin}`}
+                  className="match-card"
+                  draggable
+                  onDragStart={e =>
+                    e.dataTransfer.setData(
+                      'application/json',
+                      JSON.stringify({ pair, roundIdx: origin })
+                    )
+                  }
+                >
+                  {t1.name} vs {t2.name} {label}
+                </div>
+              );
+            })}
+          </div>
 
-
-  </div>
-)}
-
-          {/* Botón Confirmar jornada */}
-          {selectedJornada && (
-            <button
-              className="btn success"
-              style={{
-                background: isLast && itemsForBar.length > 0 ? '#A0A0A0' : '#16A34A',
-                cursor: isLast && itemsForBar.length > 0 ? 'not-allowed' : 'pointer',
-                marginTop:'1rem',
-                padding:'0.75rem',
-                width:'100%'
-              }}
-              onClick={() => {
-                if (isLast && itemsForBar.length > 0) {
-                  alert(
-                    'En la última jornada debes programar TODOS los partidos antes de confirmar.\n' +
-                    'Arrástralos todos a la tabla de horario.'
-                  );
-                } else {
-                  handleConfirmJornada();
-                }
-              }}
-              disabled={
-                loading ||
-                confirmedJornadas[`${activeDiv}-${season}-${selectedJornada}`] ||
-                (isLast && itemsForBar.length > 0)
-              }
-            >
-              {confirmedJornadas[`${activeDiv}-${season}-${selectedJornada}`]
-                ? 'Confirmado'
-                : loading ? 'Guardando…' : 'Confirmar Jornada'}
-            </button>
-          )}
+          {/* -- Botón confirmar jornada -- */}
+          <button
+            className="btn success"
+            style={{
+              marginTop: '1rem',
+              width: '100%',
+              background: isLast && itemsForBar.length
+                ? '#A0A0A0'
+                : '#16A34A',
+              cursor: isLast && itemsForBar.length
+                ? 'not-allowed'
+                : 'pointer'
+            }}
+            onClick={handleConfirmJornada}
+            disabled={
+              loading ||
+              confirmedJornadas[`${activeDiv}-${season}-${selectedJornada}`] ||
+              (isLast && itemsForBar.length)
+            }
+          >
+            {confirmedJornadas[`${activeDiv}-${season}-${selectedJornada}`]
+              ? 'Confirmado'
+              : loading
+              ? 'Guardando…'
+              : 'Confirmar Jornada'}
+          </button>
         </div>
       )}
     </>

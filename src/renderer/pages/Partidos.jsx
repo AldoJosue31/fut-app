@@ -60,7 +60,8 @@ const [showResultModal, setShowResultModal] = useState(false);
   const [confirmedJornadas, setConfirmedJornadas] = useState({});
   const [confirmLoaded, setConfirmLoaded] = useState({});
   const teamMap = Object.fromEntries(allTeams.map(t => [t.id, t]));
-  const [templateConfig, setTemplateConfig] = useState({});
+ const [templateConfig, setTemplateConfig] = useState({});
+ const [tournamentId, setTournamentId] = useState(null);
 
   // Generador round-robin
   function roundRobin(teams) {
@@ -113,6 +114,8 @@ const [showResultModal, setShowResultModal] = useState(false);
           ...prev,
           [`${divNames[0]}-${season}`]: tc
         }));
+           // guardamos el tournamentId para luego pasarlo a Jornadas
+    setTournamentId(tc.id);
       }
       const firstJ = allJ.filter(j => j.division === divNames[0] && j.season === season);
       setJornadas(firstJ);
@@ -241,6 +244,7 @@ const [showResultModal, setShowResultModal] = useState(false);
       // 1) Crear/actualizar torneo y obtener su id
       const tour = await startDivision(div, season, startDate, isDouble, cfg);
       const tournamentId = tour.id;
+      setTournamentId(tournamentId);
 
       // 2) Snapshot de equipos + stats iniciales
       const teamIds = equipos.map(t => t.id);
@@ -633,7 +637,8 @@ function handleCloseResultModal() {
           activeDiv={activeDiv}
           setActiveDiv={setActiveDiv}
           season={season}
-          setSeason={setSeason}
+         setSeason={setSeason}
+        tournamentId={tournamentId}
           jornadas={jornadas}
           selectedJornada={selectedJornada}
           setSelectedJornada={setSelectedJornada}
