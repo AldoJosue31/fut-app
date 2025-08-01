@@ -17,6 +17,7 @@ const tabs = ['Tabla','Jornadas','Goleadores'];
 export default function Clasificacion() {
   const [activeTab, setActiveTab] = useState('Tabla');
   const [classificationData, setClassificationData] = useState([]);
+  const [loadingTable, setLoadingTable] = useState(true);
   const [goleadoresData, setGoleadoresData] = useState([]);
   const [jornadas, setJornadas] = useState([]);
   const [playedJornadas, setPlayedJornadas] = useState([]);
@@ -54,6 +55,7 @@ export default function Clasificacion() {
   // 2) Recalculo la tabla cada vez que cambia la jornada seleccionada
   useEffect(() => {
     (async () => {
+      setLoadingTable(true);
       const division = localStorage.getItem('division') || 'Primera';
       const season   = localStorage.getItem('season')   || 'Apertura 2025';
       let data;
@@ -73,6 +75,7 @@ export default function Clasificacion() {
       }
 
       setClassificationData(data);
+      setLoadingTable(false);
     })();
   }, [selectedJornada, playedJornadas]);
 
@@ -143,6 +146,7 @@ export default function Clasificacion() {
             </button>
           ))}
         </div>
+
         {/* — TAB “Tabla” — */}
         {activeTab === 'Tabla' && (
           <div className="classification-container">
@@ -160,45 +164,47 @@ export default function Clasificacion() {
               <button onClick={nextJ} className="team-btn"
                 disabled={playedJornadas.length === 0}>{'>'}</button>
             </div>
-{classificationData.length === 0 ? (
-  <table className="classification-table">
-    {/* Ponemos el tbody que devuelve el skeleton dentro de una tabla */}
-    <ClassificationTableSkeleton rows={10} />
-  </table>
-) : (
-  <table className="classification-table">
-    <thead>
-      <tr>
-        <th>#</th><th>Equipo</th><th>PJ</th><th>G</th><th>E</th>
-        <th>P</th><th>GF</th><th>GC</th><th>DG</th><th>PTS</th>
-      </tr>
-    </thead>
-    <tbody>
-      {classificationData.map((team, idx) => (
-        <tr key={team.id}>
-          <td>{idx + 1}</td>
-          <td className="team-cell">
-            <span className="team-color" />
-            <span className="team-name">{team.name}</span>
-          </td>
-          <td>{team.stats.PJ}</td>
-          <td>{team.stats.G}</td>
-          <td>{team.stats.E}</td>
-          <td>{team.stats.P}</td>
-          <td>{team.stats.GF}</td>
-          <td>{team.stats.GC}</td>
-          <td>{team.stats.DG}</td>
-          <td>{team.stats.PTS}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-)}
 
+            {/*
+              Mientras `loadingTable` sea true mostramos el Skeleton.
+              Una vez terminado, renderizamos la tabla aunque el array esté vacío.
+            */}
+            {loadingTable ? (
+              <table className="classification-table">
+                <ClassificationTableSkeleton rows={10} />
+              </table>
+            ) : (
+              <table className="classification-table">
+                <thead>
+                  <tr>
+                    <th>#</th><th>Equipo</th><th>PJ</th><th>G</th><th>E</th>
+                    <th>P</th><th>GF</th><th>GC</th><th>DG</th><th>PTS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {classificationData.map((team, idx) => (
+                    <tr key={team.id}>
+                      <td>{idx + 1}</td>
+                      <td className="team-cell">
+                        <span className="team-color" />
+                        <span className="team-name">{team.name}</span>
+                      </td>
+                      <td>{team.stats.PJ}</td>
+                      <td>{team.stats.G}</td>
+                      <td>{team.stats.E}</td>
+                      <td>{team.stats.P}</td>
+                      <td>{team.stats.GF}</td>
+                      <td>{team.stats.GC}</td>
+                      <td>{team.stats.DG}</td>
+                      <td>{team.stats.PTS}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
 
           </div>
         )}
-
 
         {/* — TAB “Jornadas” — */}
         {activeTab === 'Jornadas' && (
