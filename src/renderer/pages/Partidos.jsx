@@ -209,6 +209,82 @@ const [showResultModal, setShowResultModal] = useState(false);
     }
   }, [activeTab, activeDiv, allJornadas, season]);
 
+  // ---- insertar: escuchar evento global cuando un torneo es eliminado ----
+  useEffect(() => {
+    async function onTournamentDeleted(e) {
+      try {
+        const detail = e?.detail || {};
+        const division = detail.division;
+        const deletedSeason = detail.season || season;
+        if (!division) return;
+
+        // 1) marcar la división como no iniciada
+        setStartedDivisions(prev => ({ ...(prev || {}), [division]: false }));
+
+        // 2) si la división borrada es la activa, limpiar estados asociados
+        if (division === activeDiv) {
+          setTournamentTeams([]);
+
+          // quitar schedule guardado en estado
+          const key = `${division}-${deletedSeason}`;
+          setScheduledMatches(prev => {
+            const next = { ...(prev || {}) };
+            delete next[key];
+            return next;
+          });
+
+          // limpiar tablas (table-division-season-...)
+          setTableSchedule(prev => {
+            const next = { ...(prev || {}) };
+            Object.keys(next).forEach(k => {
+              if (k.startsWith(`${division}-${deletedSeason}`)) delete next[k];
+            });
+            return next;
+          });
+
+          // limpiar templateConfig para esa division/season
+          setTemplateConfig(prev => {
+            const next = { ...(prev || {}) };
+            delete next[`${division}-${deletedSeason}`];
+            return next;
+          });
+
+          // forzar recarga de jornadas desde la BD
+          try {
+            const allJ = await getJornadas();
+            setAllJornadas(allJ);
+            setStartedDivisions(Object.fromEntries(
+              allJ.filter(j => j.season === season).map(j => [j.division, true])
+            ));
+            const js = allJ.filter(j => j.division === activeDiv && j.season === season);
+            setJornadas(js);
+            setSelectedJornada(js[0]?.id || null);
+          } catch (err) {
+            console.warn('Error recargando jornadas tras borrar torneo:', err);
+          }
+        } else {
+          // si no es la division visible, refrescamos allJornadas para mantener consistencia
+          try {
+            const allJ = await getJornadas();
+            setAllJornadas(allJ);
+            setStartedDivisions(Object.fromEntries(
+              allJ.filter(j => j.season === season).map(j => [j.division, true])
+            ));
+          } catch (err) {
+            console.warn('Error recargando jornadas tras torneoDeleted:', err);
+          }
+        }
+
+        // emitir evento adicional por si otros módulos necesitan reaccionar
+        window.dispatchEvent(new CustomEvent('appTournamentDeleted', { detail: { division, season: deletedSeason } }));
+      } catch (err) {
+        console.error('onTournamentDeleted handler error:', err);
+      }
+    }
+
+    window.addEventListener('tournamentDeleted', onTournamentDeleted);
+    return () => window.removeEventListener('tournamentDeleted', onTournamentDeleted);
+  }, [activeDiv, season]);
 
 // ... tus otros imports
 

@@ -58,24 +58,31 @@ export default function Clasificacion() {
       setLoadingTable(true);
       const division = localStorage.getItem('division') || 'Primera';
       const season   = localStorage.getItem('season')   || 'Apertura 2025';
-      let data;
+      let data = [];
 
-      if (selectedJornada == null) {
-        // si no hay jornada concreta: tomar la última jugada
-        if (playedJornadas.length > 0) {
-          const lastJ = playedJornadas[playedJornadas.length - 1].id;
-          data = await getStandingsByJornada(division, season, lastJ);
+      try {
+        if (selectedJornada == null) {
+          // si no hay jornada concreta: tomar la última jugada
+          if (playedJornadas.length > 0) {
+            const lastJ = playedJornadas[playedJornadas.length - 1].id;
+            data = await getStandingsByJornada(division, season, lastJ);
+          } else {
+            // sin jornadas jugadas, devolvemos lista vacía
+            data = [];
+          }
         } else {
-          // si no hay ninguna jornada jugada, tabla vacía
-          data = [];
+          // clasificación hasta la jornada concreta
+          data = await getStandingsByJornada(division, season, selectedJornada);
         }
-      } else {
-        // clasificación hasta la jornada concreta
-        data = await getStandingsByJornada(division, season, selectedJornada);
+        setClassificationData(data);
+      } catch (err) {
+        console.error('❌ Error al obtener clasificación:', err);
+        // en caso de fallo, mostramos la tabla vacía
+        setClassificationData([]);
+      } finally {
+        // ** SIEMPRE ** quitamos el loading
+        setLoadingTable(false);
       }
-
-      setClassificationData(data);
-      setLoadingTable(false);
     })();
   }, [selectedJornada, playedJornadas]);
 
@@ -106,7 +113,6 @@ export default function Clasificacion() {
   // Navegación de jornadas en el selector
   const prevJ = () => {
     if (selectedJornada == null) {
-      // pasar de “null” a la última jugada
       const last = playedJornadas[playedJornadas.length - 1];
       if (last) setSelectedJornada(last.id);
     } else {
@@ -165,10 +171,6 @@ export default function Clasificacion() {
                 disabled={playedJornadas.length === 0}>{'>'}</button>
             </div>
 
-            {/*
-              Mientras `loadingTable` sea true mostramos el Skeleton.
-              Una vez terminado, renderizamos la tabla aunque el array esté vacío.
-            */}
             {loadingTable ? (
               <table className="classification-table">
                 <ClassificationTableSkeleton rows={10} />
@@ -243,3 +245,4 @@ export default function Clasificacion() {
     </div>
   );
 }
+// src/renderer/pages/Clasificacion.jsx
